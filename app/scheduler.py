@@ -415,47 +415,49 @@ async def start_scheduler():
         global_cache.scheduler_running = True
         logger.info("[OK] 调度器已启动")
         
-        # ── 1. 从 SQLite 恢复上次数据 ──
+        # ── 1. 从 SQLite 恢复上次数据（毫秒级，不阻塞） ──
         logger.info("从 SQLite 恢复历史数据...")
         global_cache.load_from_db()
         
-        # ── 2. 交易时段：完整爬取；非交易时段：若缓存无效也爬取 ──
-        _has_valid_market = (
-            global_cache.market_indices
-            and any(x.get("price") for x in global_cache.market_indices)
-        )
-        _has_valid_funds = bool(global_cache.fund_valuations)
+        # ── 2. 首次数据爬取放入后台任务，不阻塞服务器启动 ──
+        async def _deferred_first_fetch():
+            """延迟 2 秒后在后台执行首次数据爬取，服务器可立即响应请求"""
+            await asyncio.sleep(2)
+            _has_valid_market = (
+                global_cache.market_indices
+                and any(x.get("price") for x in global_cache.market_indices)
+            )
+            _has_valid_funds = bool(global_cache.fund_valuations)
 
-        if is_market_open():
-            logger.info("当前为交易时段，执行首次数据爬取...")
-            await update_all_data()
-        else:
-            status = get_trading_status()
-            if not _has_valid_market or not _has_valid_funds:
-                logger.info(
-                    f"当前为非交易时段({status['status_text']})，"
-                    f"缓存不完整(市场={'✓' if _has_valid_market else '✗'} "
-                    f"基金={'✓' if _has_valid_funds else '✗'})，爬取收盘数据..."
-                )
-                if not _has_valid_market:
-                    await _update_market_data_impl()
-                await update_fund_valuations()
-                await update_user_portfolios()
+            if is_market_open():
+                logger.info("[STARTUP-BG] 交易时段，后台执行首次数据爬取...")
+                await update_all_data()
             else:
-                logger.info(
-                    f"当前为非交易时段({status['status_text']})，"
-                    f"使用 SQLite 恢复的历史数据"
-                )
+                status = get_trading_status()
+                if not _has_valid_market or not _has_valid_funds:
+                    logger.info(
+                        f"[STARTUP-BG] 非交易时段({status['status_text']})，"
+                        f"缓存不完整(市场={'✓' if _has_valid_market else '✗'} "
+                        f"基金={'✓' if _has_valid_funds else '✗'})，后台爬取收盘数据..."
+                    )
+                    if not _has_valid_market:
+                        await _update_market_data_impl()
+                    await update_fund_valuations()
+                    await update_user_portfolios()
+                else:
+                    logger.info(
+                        f"[STARTUP-BG] 非交易时段({status['status_text']})，"
+                        f"使用 SQLite 恢复的历史数据"
+                    )
 
-        # ── 3. 启动时后台补全所有已跟踪基金的历史净值（静默，不阻塞启动） ──
-        async def _deferred_init():
-            import asyncio as _asyncio
-            await _asyncio.sleep(10)   # 延迟 10 秒，让服务先就绪
-            logger.info("[STARTUP] 开始后台检查/补全历史净值...")
+            # 首次爬取完成后再补全历史净值
+            await asyncio.sleep(8)
+            logger.info("[STARTUP-BG] 开始后台检查/补全历史净值...")
             await batch_fill_all_gaps()
-            logger.info("[STARTUP] 历史净值检查完成")
+            logger.info("[STARTUP-BG] 历史净值检查完成")
 
-        asyncio.ensure_future(_deferred_init())
+        asyncio.ensure_future(_deferred_first_fetch())
+        logger.info("[OK] 服务器已就绪，首次数据爬取将在后台进行")
         
     except Exception as e:
         logger.error(f"[ERROR] 调度器启动失败: {e}")
