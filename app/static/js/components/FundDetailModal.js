@@ -27,6 +27,7 @@ export default {
     const intradayChartRef = ref(null)
     let intradayChart = null
     let intradayTimer = null
+    let modalShownHandler = null
 
     // ── 业绩走势 ──
     const periodDays = ref(90)
@@ -102,11 +103,27 @@ export default {
         clearIntraday()
         if (perfChart) { perfChart.dispose(); perfChart = null }
       })
+      modalShownHandler = () => {
+        nextTick(() => {
+          if (activeTab.value === 'realtime') {
+            renderIntradayChart()
+            setTimeout(() => { if (intradayChart) intradayChart.resize() }, 80)
+            setTimeout(() => { if (intradayChart) intradayChart.resize() }, 220)
+          } else if (activeTab.value === 'performance') {
+            renderPerfChart()
+            setTimeout(() => { if (perfChart) perfChart.resize() }, 80)
+          }
+        })
+      }
+      modalEl.value.addEventListener('shown.bs.modal', modalShownHandler)
       window.addEventListener('resize', handleResize)
     })
 
     onUnmounted(() => {
       window.removeEventListener('resize', handleResize)
+      if (modalEl.value && modalShownHandler) {
+        modalEl.value.removeEventListener('shown.bs.modal', modalShownHandler)
+      }
       clearIntraday()
       if (perfChart) { perfChart.dispose(); perfChart = null }
     })
@@ -268,8 +285,15 @@ export default {
     }
 
     // ═════════ 实时走势图 ═════════
-    function renderIntradayChart() {
+    function renderIntradayChart(retry = 0) {
       if (!intradayChartRef.value) return
+      const rect = intradayChartRef.value.getBoundingClientRect()
+      if (rect.width < 220 || rect.height < 160) {
+        if (retry < 10) {
+          setTimeout(() => renderIntradayChart(retry + 1), 80)
+        }
+        return
+      }
       const pts = intradayData.value?.points || []
 
       if (intradayChart) intradayChart.dispose()
@@ -395,7 +419,8 @@ export default {
           },
         },
       })
-      setTimeout(() => { if (intradayChart) intradayChart.resize() }, 80)
+      setTimeout(() => { if (intradayChart) intradayChart.resize() }, 60)
+      setTimeout(() => { if (intradayChart) intradayChart.resize() }, 180)
     }
 
     // ═════════ 业绩走势 ═════════

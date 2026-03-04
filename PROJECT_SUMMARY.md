@@ -966,6 +966,22 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 本地验证：
    - `FundDetailModal.js` 与 `index.html` 诊断通过，无错误。
 
+### 2026-03-04：修复“首次打开实时走势坍缩到左侧”问题
+
+- 现象：收盘后首次打开某些基金详情页，实时走势会挤成左侧一团；切换到“业绩走势”再切回后恢复正常。
+- 根因：图表在弹窗动画/布局尚未稳定时初始化，拿到错误容器尺寸（宽高过小）。
+- 修改文件：
+   - `app/static/js/components/FundDetailModal.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复内容：
+   1. 在 `shown.bs.modal` 事件中强制重绘/多次 `resize`，确保弹窗完全展开后图表重新布局。
+   2. `renderIntradayChart` 新增容器尺寸守卫（宽<220 或 高<160 时延迟重试，最多 10 次）。
+   3. 图表 setOption 后增加二次延迟 `resize`，提升移动端首次显示稳定性。
+   4. `index.html` 静态资源版本升级到 `app.js?v=20260304-4`，避免旧脚本缓存。
+- 本地验证：
+   - `FundDetailModal.js` 与 `index.html` 诊断通过，无语法错误。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。
