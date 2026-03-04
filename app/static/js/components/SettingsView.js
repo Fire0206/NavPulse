@@ -58,7 +58,8 @@ const THEMES = [
   {
     id: 'light', name: 'light', icon: 'bi-sun-fill',
     primary: '#1F2937', primaryDark: '#111827', primaryLight: '#F3F4F6', secondary: '#9CA3AF',
-    gradient: 'linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%)',
+    gradient: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)',
+    swatchGradient: 'linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%)',
     bg: '#FFFFFF',
     cardBg: '#FFFFFF',
     textMain: '#111111',
@@ -211,7 +212,7 @@ export default {
             <div class="theme-item" v-for="t in THEMES" :key="t.id"
                  :class="{ active: currentTheme === t.id }"
                  @click="selectTheme(t)">
-              <div class="theme-dot" :style="{ background: t.gradient, border: t.id === 'light' ? '1px solid #E5E7EB' : 'none' }">
+              <div class="theme-dot" :style="{ background: t.swatchGradient || t.gradient, border: t.id === 'light' ? '1px solid #E5E7EB' : 'none' }">
                 <i v-if="currentTheme === t.id" class="bi bi-check-lg" :style="{ color: t.id === 'light' ? '#111111' : '#FFFFFF' }"></i>
               </div>
               <span class="theme-name">{{ t.name }}</span>

@@ -784,6 +784,19 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. `dark` 边框变量提亮（`border/borderHover`），提升按钮与卡片边界可见性。
    3. `dark` 遮罩透明度微调，避免整体过暗。
    4. 前端资源版本升级到 `app.js?v=20260305-13`。
+
+### 2026-03-05：修复 light 下白字不可见（仅保留白色主题圆圈）
+
+- 现象：light 主题下部分白字内容不可见。
+- 根因：将 `light.gradient` 改为白色后，页面中依赖主题渐变且使用白字的区域（如设置页顶部信息卡）对比度不足。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. 恢复 `light.gradient` 为深色渐变，保证白字可读性。
+   2. 新增 `swatchGradient`，主题选择圆圈仅使用 `swatchGradient`（light 为白色圆圈），不影响全局主题配色。
+   3. 前端资源版本升级到 `app.js?v=20260305-14`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
