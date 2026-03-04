@@ -4,59 +4,7 @@ import { store, showToast } from '../store.js'
 // ── 主题定义 ──────────────────────────────────────
 const THEMES = [
   {
-    id: 'pink', name: '樱花粉', icon: 'bi-heart-fill',
-    primary: '#FB7299', primaryDark: '#e8648a', primaryLight: '#FFF0F5', secondary: '#FFACB7',
-    gradient: 'linear-gradient(135deg, #FB7299 0%, #FFBDD6 100%)',
-    bg: '#FFF3F7',
-    cardBg: '#FFFFFF',
-    textMain: '#3D2332',
-    textSecondary: '#7A5A6A',
-    textLight: '#B18BA0',
-    border: '#F3D8E4',
-    borderHover: '#E9BFD3',
-    shadowRgb: '251, 114, 153',
-  },
-  {
-    id: 'blue', name: '天空蓝', icon: 'bi-water',
-    primary: '#4A90D9', primaryDark: '#3A7BC8', primaryLight: '#EFF6FF', secondary: '#8BB8E8',
-    gradient: 'linear-gradient(135deg, #4A90D9 0%, #A8D0F5 100%)',
-    bg: '#F2F7FF',
-    cardBg: '#FFFFFF',
-    textMain: '#13253A',
-    textSecondary: '#49617A',
-    textLight: '#7E97B1',
-    border: '#D7E5F5',
-    borderHover: '#BDD3EB',
-    shadowRgb: '74, 144, 217',
-  },
-  {
-    id: 'purple', name: '星空紫', icon: 'bi-stars',
-    primary: '#8B5CF6', primaryDark: '#7C3AED', primaryLight: '#F3EEFF', secondary: '#B794F6',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #C4B5FD 100%)',
-    bg: '#F5F3FF',
-    cardBg: '#FFFFFF',
-    textMain: '#22163F',
-    textSecondary: '#54477C',
-    textLight: '#8D81B7',
-    border: '#E4DDFB',
-    borderHover: '#D3C7F8',
-    shadowRgb: '139, 92, 246',
-  },
-  {
-    id: 'green', name: '薄荷绿', icon: 'bi-leaf',
-    primary: '#10B981', primaryDark: '#059669', primaryLight: '#ECFDF5', secondary: '#6EE7B7',
-    gradient: 'linear-gradient(135deg, #10B981 0%, #A7F3D0 100%)',
-    bg: '#ECFDF5',
-    cardBg: '#FFFFFF',
-    textMain: '#10332A',
-    textSecondary: '#2D6252',
-    textLight: '#6A9A8D',
-    border: '#CDEEE1',
-    borderHover: '#AEE1CD',
-    shadowRgb: '16, 185, 129',
-  },
-  {
-    id: 'light', name: 'light', icon: 'bi-sun-fill',
+    id: 'day', name: 'Day', icon: 'bi-sun-fill',
     primary: '#1F2937', primaryDark: '#111827', primaryLight: '#F3F4F6', secondary: '#9CA3AF',
     gradient: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)',
     swatchGradient: 'linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%)',
@@ -70,7 +18,7 @@ const THEMES = [
     shadowRgb: '17, 17, 17',
   },
   {
-    id: 'dark', name: 'dark', icon: 'bi-moon-stars-fill',
+    id: 'night', name: 'Night', icon: 'bi-moon-stars-fill',
     primary: '#5B6B82', primaryDark: '#46556A', primaryLight: '#2A3340', secondary: '#8FA1B8',
     gradient: 'linear-gradient(135deg, #374151 0%, #2B3442 100%)',
     bg: '#2A313C',
@@ -81,6 +29,58 @@ const THEMES = [
     border: '#465265',
     borderHover: '#607089',
     shadowRgb: '13, 18, 26',
+  },
+  {
+    id: 'pink', name: 'Pink', icon: 'bi-heart-fill',
+    primary: '#FB7299', primaryDark: '#e8648a', primaryLight: '#FFF0F5', secondary: '#FFACB7',
+    gradient: 'linear-gradient(135deg, #FB7299 0%, #FFBDD6 100%)',
+    bg: '#FFF3F7',
+    cardBg: '#FFFFFF',
+    textMain: '#3D2332',
+    textSecondary: '#7A5A6A',
+    textLight: '#B18BA0',
+    border: '#F3D8E4',
+    borderHover: '#E9BFD3',
+    shadowRgb: '251, 114, 153',
+  },
+  {
+    id: 'blue', name: 'Blue', icon: 'bi-water',
+    primary: '#4A90D9', primaryDark: '#3A7BC8', primaryLight: '#EFF6FF', secondary: '#8BB8E8',
+    gradient: 'linear-gradient(135deg, #4A90D9 0%, #A8D0F5 100%)',
+    bg: '#F2F7FF',
+    cardBg: '#FFFFFF',
+    textMain: '#13253A',
+    textSecondary: '#49617A',
+    textLight: '#7E97B1',
+    border: '#D7E5F5',
+    borderHover: '#BDD3EB',
+    shadowRgb: '74, 144, 217',
+  },
+  {
+    id: 'purple', name: 'Purple', icon: 'bi-stars',
+    primary: '#8B5CF6', primaryDark: '#7C3AED', primaryLight: '#F3EEFF', secondary: '#B794F6',
+    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #C4B5FD 100%)',
+    bg: '#F5F3FF',
+    cardBg: '#FFFFFF',
+    textMain: '#22163F',
+    textSecondary: '#54477C',
+    textLight: '#8D81B7',
+    border: '#E4DDFB',
+    borderHover: '#D3C7F8',
+    shadowRgb: '139, 92, 246',
+  },
+  {
+    id: 'green', name: 'Green', icon: 'bi-leaf',
+    primary: '#10B981', primaryDark: '#059669', primaryLight: '#ECFDF5', secondary: '#6EE7B7',
+    gradient: 'linear-gradient(135deg, #10B981 0%, #A7F3D0 100%)',
+    bg: '#ECFDF5',
+    cardBg: '#FFFFFF',
+    textMain: '#10332A',
+    textSecondary: '#2D6252',
+    textLight: '#6A9A8D',
+    border: '#CDEEE1',
+    borderHover: '#AEE1CD',
+    shadowRgb: '16, 185, 129',
   },
 ]
 
@@ -102,13 +102,13 @@ function applyTheme(theme) {
   root.style.setProperty('--surface-soft', `rgba(${theme.shadowRgb}, 0.10)`)
   root.style.setProperty('--surface-strong', `rgba(${theme.shadowRgb}, 0.16)`)
   root.style.setProperty('--focus-ring', `rgba(${theme.shadowRgb}, 0.24)`)
-  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(22, 28, 38, 0.62)' : 'rgba(255, 255, 255, 0.86)')
-  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(32, 39, 52, .94)' : 'rgba(255,255,255,.96)')
-  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.92)')
-  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(203,213,225,.18)' : 'rgba(17,17,17,.08)')
-  root.style.setProperty('--bg-gradient', theme.id === 'dark'
+  root.style.setProperty('--overlay-bg', theme.id === 'night' ? 'rgba(22, 28, 38, 0.62)' : 'rgba(255, 255, 255, 0.86)')
+  root.style.setProperty('--nav-bg', theme.id === 'night' ? 'rgba(32, 39, 52, .94)' : 'rgba(255,255,255,.96)')
+  root.style.setProperty('--glass-bg', theme.id === 'night' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.92)')
+  root.style.setProperty('--glass-border', theme.id === 'night' ? 'rgba(203,213,225,.18)' : 'rgba(17,17,17,.08)')
+  root.style.setProperty('--bg-gradient', theme.id === 'night'
     ? '#2A313C'
-    : theme.id === 'light'
+    : theme.id === 'day'
       ? '#FFFFFF'
       : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)
   root.style.setProperty('--shadow-soft', `0 8px 24px rgba(${theme.shadowRgb}, 0.12)`)
@@ -117,13 +117,15 @@ function applyTheme(theme) {
 
 /** 页面加载时恢复已保存的主题 */
 function restoreSavedTheme() {
-  const rawId = localStorage.getItem('navpulse_theme') || 'light'
+  const rawId = localStorage.getItem('navpulse_theme') || 'day'
   const migrateThemeId = {
-    orange: 'light',
+    orange: 'day',
     teal: 'green',
+    light: 'day',
+    dark: 'night',
   }
   const savedId = migrateThemeId[rawId] || rawId
-  const theme = THEMES.find(t => t.id === savedId) || THEMES.find(t => t.id === 'light') || THEMES[0]
+  const theme = THEMES.find(t => t.id === savedId) || THEMES.find(t => t.id === 'day') || THEMES[0]
   if (savedId !== rawId) {
     localStorage.setItem('navpulse_theme', savedId)
   }
@@ -212,8 +214,8 @@ export default {
             <div class="theme-item" v-for="t in THEMES" :key="t.id"
                  :class="{ active: currentTheme === t.id }"
                  @click="selectTheme(t)">
-              <div class="theme-dot" :style="{ background: t.swatchGradient || t.gradient, border: t.id === 'light' ? '1px solid #E5E7EB' : 'none' }">
-                <i v-if="currentTheme === t.id" class="bi bi-check-lg" :style="{ color: t.id === 'light' ? '#111111' : '#FFFFFF' }"></i>
+              <div class="theme-dot" :style="{ background: t.swatchGradient || t.gradient, border: t.id === 'day' ? '1px solid #E5E7EB' : 'none' }">
+                <i v-if="currentTheme === t.id" class="bi bi-check-lg" :style="{ color: t.id === 'day' ? '#111111' : '#FFFFFF' }"></i>
               </div>
               <span class="theme-name">{{ t.name }}</span>
             </div>

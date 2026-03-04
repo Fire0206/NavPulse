@@ -21,7 +21,7 @@
 5. **基金历史净值** — 历史净值走势图
 6. **联接基金穿透** — 自动识别联接基金并穿透到底层 ETF 真实持仓
 7. **OCR 截图导入** — 拍照/上传支付宝持仓截图，自动识别基金名称+市值+收益并批量导入
-8. **设置中心** — 多主题色切换（6色：樱花粉/天空蓝/星空紫/薄荷绿/light（纯白风）/dark（纯黑风））、隐私模式、缓存管理、系统信息
+8. **设置中心** — 多主题色切换（6色：Day/Night/Pink/Blue/Purple/Green）、隐私模式、缓存管理、系统信息
 
 ---
 
@@ -740,7 +740,24 @@ global_cache.scheduler_running  # bool — 调度器状态
 9. **休市估值显示**：非交易时段 `get_fund_detail` 和 `calculate_fund_estimate` 优先使用历史净值真实涨跌幅
 10. **缓存策略**：cache-first + 骨架屏 + 后台静默刷新（silent-spinner）
 11. **SQLite WAL 模式**：`database.py` 启用 WAL + busy_timeout=5000ms，提升多 worker 并发性能
-12. **多主题色支持**：6 种主题（樱花粉/天空蓝/星空紫/薄荷绿/light（纯白风）/dark（纯黑风）），CSS 变量 + localStorage 持久化（含旧主题 ID 迁移：orange→light，teal→green）
+12. **多主题色支持**：6 种主题（Day/Night/Pink/Blue/Purple/Green），CSS 变量 + localStorage 持久化（含旧主题 ID 迁移：orange→day，light→day，dark→night，teal→green）
+
+### 2026-03-05：主题命名统一为 Day/Night + 英文化
+
+- 需求：
+   1. `light` / `dark` 改名为 `day` / `night`。
+   2. `day`、`night` 放在主题列表前两个选项。
+   3. 默认主题改为 `day`。
+   4. 其余四个主题名称改为英文。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `README.md`
+   - `PROJECT_SUMMARY.md`
+   - `app/templates/index.html`
+- 实现：
+   1. 主题顺序调整为：Day / Night / Pink / Blue / Purple / Green。
+   2. 旧主题 ID 自动迁移：`light→day`、`dark→night`、`orange→day`、`teal→green`。
+   3. 默认读取主题从 `day` 开始，兼容历史 localStorage。
 
 ### 2026-03-05：主题命名与风格调整（light / dark）
 
