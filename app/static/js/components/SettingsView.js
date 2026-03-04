@@ -5,39 +5,81 @@ import { store, showToast } from '../store.js'
 const THEMES = [
   {
     id: 'pink', name: '樱花粉', icon: 'bi-heart-fill',
-    primary: '#FB7299', primaryDark: '#e8648a', secondary: '#FFACB7',
+    primary: '#FB7299', primaryDark: '#e8648a', primaryLight: '#FFF0F5', secondary: '#FFACB7',
     gradient: 'linear-gradient(135deg, #FB7299 0%, #FFBDD6 100%)',
+    bg: '#FFF3F7',
+    cardBg: '#FFFFFF',
+    textMain: '#3D2332',
+    textSecondary: '#7A5A6A',
+    textLight: '#B18BA0',
+    border: '#F3D8E4',
+    borderHover: '#E9BFD3',
     shadowRgb: '251, 114, 153',
   },
   {
     id: 'blue', name: '天空蓝', icon: 'bi-water',
-    primary: '#4A90D9', primaryDark: '#3A7BC8', secondary: '#8BB8E8',
+    primary: '#4A90D9', primaryDark: '#3A7BC8', primaryLight: '#EFF6FF', secondary: '#8BB8E8',
     gradient: 'linear-gradient(135deg, #4A90D9 0%, #A8D0F5 100%)',
+    bg: '#F2F7FF',
+    cardBg: '#FFFFFF',
+    textMain: '#13253A',
+    textSecondary: '#49617A',
+    textLight: '#7E97B1',
+    border: '#D7E5F5',
+    borderHover: '#BDD3EB',
     shadowRgb: '74, 144, 217',
   },
   {
     id: 'purple', name: '星空紫', icon: 'bi-stars',
-    primary: '#8B5CF6', primaryDark: '#7C3AED', secondary: '#B794F6',
+    primary: '#8B5CF6', primaryDark: '#7C3AED', primaryLight: '#F3EEFF', secondary: '#B794F6',
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #C4B5FD 100%)',
+    bg: '#F5F3FF',
+    cardBg: '#FFFFFF',
+    textMain: '#22163F',
+    textSecondary: '#54477C',
+    textLight: '#8D81B7',
+    border: '#E4DDFB',
+    borderHover: '#D3C7F8',
     shadowRgb: '139, 92, 246',
   },
   {
     id: 'green', name: '薄荷绿', icon: 'bi-leaf',
-    primary: '#10B981', primaryDark: '#059669', secondary: '#6EE7B7',
+    primary: '#10B981', primaryDark: '#059669', primaryLight: '#ECFDF5', secondary: '#6EE7B7',
     gradient: 'linear-gradient(135deg, #10B981 0%, #A7F3D0 100%)',
+    bg: '#ECFDF5',
+    cardBg: '#FFFFFF',
+    textMain: '#10332A',
+    textSecondary: '#2D6252',
+    textLight: '#6A9A8D',
+    border: '#CDEEE1',
+    borderHover: '#AEE1CD',
     shadowRgb: '16, 185, 129',
   },
   {
-    id: 'orange', name: '落日橙', icon: 'bi-sunset-fill',
-    primary: '#F97316', primaryDark: '#EA580C', secondary: '#FDBA74',
-    gradient: 'linear-gradient(135deg, #F97316 0%, #FED7AA 100%)',
-    shadowRgb: '249, 115, 22',
+    id: 'light', name: '高级浅色', icon: 'bi-sun-fill',
+    primary: '#2563EB', primaryDark: '#1D4ED8', primaryLight: '#EFF6FF', secondary: '#93C5FD',
+    gradient: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #60A5FA 100%)',
+    bg: '#EEF3FB',
+    cardBg: '#FFFFFF',
+    textMain: '#0F172A',
+    textSecondary: '#475569',
+    textLight: '#94A3B8',
+    border: '#E2E8F0',
+    borderHover: '#CBD5E1',
+    shadowRgb: '37, 99, 235',
   },
   {
-    id: 'teal', name: '湖水青', icon: 'bi-droplet-fill',
-    primary: '#14B8A6', primaryDark: '#0D9488', secondary: '#5EEAD4',
-    gradient: 'linear-gradient(135deg, #14B8A6 0%, #99F6E4 100%)',
-    shadowRgb: '20, 184, 166',
+    id: 'dark', name: '高级深色', icon: 'bi-moon-stars-fill',
+    primary: '#7C93FF', primaryDark: '#5F78F2', primaryLight: '#202B46', secondary: '#93C5FD',
+    gradient: 'linear-gradient(135deg, #111827 0%, #1F2937 55%, #334155 100%)',
+    bg: '#0B1120',
+    cardBg: '#141C2E',
+    textMain: '#E2E8F0',
+    textSecondary: '#B8C3D6',
+    textLight: '#8092AE',
+    border: '#273449',
+    borderHover: '#344664',
+    shadowRgb: '124, 147, 255',
   },
 ]
 
@@ -46,16 +88,42 @@ function applyTheme(theme) {
   const root = document.documentElement
   root.style.setProperty('--primary', theme.primary)
   root.style.setProperty('--primary-dark', theme.primaryDark)
+  root.style.setProperty('--primary-light', theme.primaryLight)
   root.style.setProperty('--secondary', theme.secondary)
   root.style.setProperty('--accent-gradient', theme.gradient)
+  root.style.setProperty('--bg', theme.bg)
+  root.style.setProperty('--card-bg', theme.cardBg)
+  root.style.setProperty('--text-main', theme.textMain)
+  root.style.setProperty('--text-secondary', theme.textSecondary)
+  root.style.setProperty('--text-light', theme.textLight)
+  root.style.setProperty('--border', theme.border)
+  root.style.setProperty('--border-hover', theme.borderHover)
+  root.style.setProperty('--surface-soft', `rgba(${theme.shadowRgb}, 0.10)`)
+  root.style.setProperty('--surface-strong', `rgba(${theme.shadowRgb}, 0.16)`)
+  root.style.setProperty('--focus-ring', `rgba(${theme.shadowRgb}, 0.24)`)
+  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(7, 12, 24, 0.72)' : 'rgba(255, 255, 255, 0.80)')
+  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(20, 28, 46, .92)' : 'rgba(255,255,255,.92)')
+  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.12)')
+  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.20)')
+  root.style.setProperty('--bg-gradient', theme.id === 'dark'
+    ? 'radial-gradient(1000px 460px at -10% -5%, rgba(124,147,255,.16), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(59,130,246,.14), transparent 58%), #0B1120'
+    : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)
   root.style.setProperty('--shadow-soft', `0 8px 24px rgba(${theme.shadowRgb}, 0.12)`)
   root.style.setProperty('--shadow-card-hover', `0 8px 28px rgba(${theme.shadowRgb}, 0.16)`)
 }
 
 /** 页面加载时恢复已保存的主题 */
 function restoreSavedTheme() {
-  const savedId = localStorage.getItem('navpulse_theme') || 'pink'
-  const theme = THEMES.find(t => t.id === savedId) || THEMES[0]
+  const rawId = localStorage.getItem('navpulse_theme') || 'light'
+  const migrateThemeId = {
+    orange: 'light',
+    teal: 'green',
+  }
+  const savedId = migrateThemeId[rawId] || rawId
+  const theme = THEMES.find(t => t.id === savedId) || THEMES.find(t => t.id === 'light') || THEMES[0]
+  if (savedId !== rawId) {
+    localStorage.setItem('navpulse_theme', savedId)
+  }
   applyTheme(theme)
   return theme.id
 }

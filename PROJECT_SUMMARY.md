@@ -21,7 +21,7 @@
 5. **基金历史净值** — 历史净值走势图
 6. **联接基金穿透** — 自动识别联接基金并穿透到底层 ETF 真实持仓
 7. **OCR 截图导入** — 拍照/上传支付宝持仓截图，自动识别基金名称+市值+收益并批量导入
-8. **设置中心** — 多主题色切换（6禁：樱花粉/天空蓝/星空紫/薄荷绿/落日橙/湖水青）、隐私模式、缓存管理、系统信息
+8. **设置中心** — 多主题色切换（6色：樱花粉/天空蓝/星空紫/薄荷绿/高级浅色/light/高级深色/dark）、隐私模式、缓存管理、系统信息
 
 ---
 
@@ -603,7 +603,7 @@ global_cache.scheduler_running  # bool — 调度器状态
 | `TopBar.js`         | ~50   | 顶部栏：标题 + 隐私模式开关                      |
 | `StatusBar.js`      | ~40   | 系统状态条：更新时间 + 调度器状态                 |
 | `BottomNav.js`      | ~40   | 底部导航栏（持仓/行情/自选/设置 四切换）           |
-| `SettingsView.js`   | ~190  | 设置页：主题切换(6色)/隐私模式/缓存管理/系统信息   |
+| `SettingsView.js`   | ~210  | 设置页：主题切换(6色，含 light/dark)/隐私模式/缓存管理/系统信息   |
 | `LoadingOverlay.js` | ~30   | 顶部进度条（保留，各视图已改用骨架屏加载）        |
 
 ### FundDetailModal.js — 基金详情页（核心）
@@ -728,7 +728,7 @@ global_cache.scheduler_running  # bool — 调度器状态
 9. **休市估值显示**：非交易时段 `get_fund_detail` 和 `calculate_fund_estimate` 优先使用历史净值真实涨跌幅
 10. **缓存策略**：cache-first + 骨架屏 + 后台静默刷新（silent-spinner）
 11. **SQLite WAL 模式**：`database.py` 启用 WAL + busy_timeout=5000ms，提升多 worker 并发性能
-12. **多主题色支持**：6 种主题（樱花粉/天空蓝/星空紫/薄荷绿/落日橙/湖水青），CSS 变量 + localStorage 持久化
+12. **多主题色支持**：6 种主题（樱花粉/天空蓝/星空紫/薄荷绿/高级浅色 light/高级深色 dark），CSS 变量 + localStorage 持久化（含旧主题 ID 迁移：orange→light，teal→green）
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
