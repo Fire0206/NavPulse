@@ -343,6 +343,24 @@ async def get_fund_intraday(fund_code: str):
                 target_date = d.strftime("%Y-%m-%d")
                 break
 
+    # ── 0. 日级别估值基金不应伪造分时曲线（例如 nav_history/history） ──
+    valuation_hint = global_cache.get_fund_valuation(fund_code)
+    if not valuation_hint:
+        try:
+            valuation_hint = await calculate_fund_estimate(fund_code)
+        except Exception:
+            valuation_hint = None
+
+    if valuation_hint and valuation_hint.get("estimation_method") in {"nav_history", "history"}:
+        return {
+            "fund_code": fund_code,
+            "trade_date": target_date,
+            "is_live": False,
+            "points": [],
+            "no_intraday": True,
+            "reason": "nav_history_only",
+        }
+
     # ── 1. 优先从 DB 读取已有快照（毫秒级） ──
     def _load_points(date: str) -> list:
         sdb = SessionLocal()

@@ -749,6 +749,9 @@ export default {
             <span v-if="intradayData.is_live" class="fd-live-badge">● LIVE</span>
             <span v-else style="color:#95A5A6;font-size:11px">上一交易日</span>
           </div>
+          <div v-if="intradayData && intradayData.no_intraday" class="fd-empty" style="padding:14px 12px 8px">
+            当前仅有历史净值估值，暂无分钟级实时走势
+          </div>
           <div ref="intradayChartRef" style="width:100%;height:260px"></div>
 
           <div class="fd-section-label" style="margin-top:16px">

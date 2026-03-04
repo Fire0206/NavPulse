@@ -982,6 +982,22 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 本地验证：
    - `FundDetailModal.js` 与 `index.html` 诊断通过，无语法错误。
 
+### 2026-03-04：修复联接基金“历史净值被伪装成分时线”问题（如 024195）
+
+- 现象：部分基金（如 `024195`）在实时走势中出现长时间水平线/异常“坍缩”，且与分时行情不符。
+- 根因：该基金估值策略退化为 `nav_history`（仅日级别涨跌，无分钟数据），旧逻辑仍将日级别值前向填充为“分时曲线”，造成误导。
+- 修改文件：
+   - `app/routers/fund.py`
+   - `app/static/js/components/FundDetailModal.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复内容：
+   1. `intraday` 接口新增策略守卫：当 `estimation_method in {nav_history, history}` 时返回空点位并标记 `no_intraday=true`。
+   2. 详情页实时 Tab 显示明确提示："当前仅有历史净值估值，暂无分钟级实时走势"。
+   3. 静态资源版本升级到 `app.js?v=20260304-5`，确保客户端加载新逻辑。
+- 本地验证：
+   - `GET /api/fund/024195/intraday` 返回：`points=0, no_intraday=True, reason=nav_history_only`。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。
