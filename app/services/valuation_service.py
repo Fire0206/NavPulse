@@ -760,8 +760,6 @@ async def get_portfolio_valuation(holdings: list) -> dict:
                 "settlement_delay": valuation.get("settlement_delay", 0),
             }
 
-        print(f"[INFO] 开始并行计算 {len(holdings)} 只基金的估值...")
-
         # ── asyncio.gather 并发执行所有基金估值 ──
         raw_results = await asyncio.gather(
             *(_process_single_fund(h) for h in holdings),
@@ -785,8 +783,6 @@ async def get_portfolio_valuation(holdings: list) -> dict:
             total_market_value += result["market_value"]
             total_cost += result["cost"]
             total_daily_profit += result.get("daily_profit", 0.0)
-            print(f"  ✓ {result['name']} ({result['code']}): "
-                  f"估值 {result['estimate_change']:+.2f}%")
 
         # 按原始顺序排列
         code_order = {h.get("code"): i for i, h in enumerate(holdings)}
@@ -798,9 +794,6 @@ async def get_portfolio_valuation(holdings: list) -> dict:
         total_daily_profit_rate = round(
             (total_daily_profit / total_market_value * 100)
             if total_market_value else 0, 2)
-
-        print(f"[OK] 组合计算完成: 市值 {total_market_value:.2f}, "
-              f"日赚 {total_daily_profit:+.2f}")
 
         return {
             "total_market_value": round(total_market_value, 2),
