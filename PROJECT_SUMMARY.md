@@ -890,6 +890,22 @@ global_cache.scheduler_running  # bool — 调度器状态
    3. 前端 `fetchFundRank` 增加请求超时（12s）与 `force_refresh` 参数。
    4. 行情页涨跌榜改为“本地缓存先显示 → 拉取后端最新缓存 → 后台强刷完成后再更新”。
    5. 前端资源版本升级到 `app.js?v=20260305-19`。
+
+### 2026-03-05：修复“实时拉取基金涨跌榜失败/超时”日志频繁刷屏
+
+- 现象：后端日志反复出现“实时拉取基金涨跌榜失败/超时:”且异常详情为空。
+- 原因：
+   1. 前端进入行情页时会触发 `force_refresh`，导致频繁调用上游接口。
+   2. 超时异常 `TimeoutError` 的 `str(e)` 可能为空，日志表现为冒号后无详情。
+- 修改文件：
+   - `app/static/js/components/MarketView.js`
+   - `app/services/market_service.py`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. 前端仅在涨跌榜日期为空或非当日时才触发 `force_refresh`，显著降低无意义强刷。
+   2. 后端日志增加异常类型输出（如 `TimeoutError`），即使无 message 也可定位问题。
+   3. 前端版本升级到 `app.js?v=20260305-20`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 

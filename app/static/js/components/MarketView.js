@@ -146,12 +146,18 @@ export default {
           writeCache(RANK_CACHE_KEY, latest)
         }
 
-        fetchFundRank(true).then((fresh) => {
-          if (fresh?.top?.length || fresh?.bottom?.length) {
-            fundRank.value = fresh
-            writeCache(RANK_CACHE_KEY, fresh)
-          }
-        }).catch(() => {})
+        const today = new Date().toISOString().slice(0, 10)
+        const rankDate = (latest?.date || fundRank.value?.date || '').slice(0, 10)
+        const shouldForceRefresh = !rankDate || rankDate !== today
+
+        if (shouldForceRefresh) {
+          fetchFundRank(true).then((fresh) => {
+            if (fresh?.top?.length || fresh?.bottom?.length) {
+              fundRank.value = fresh
+              writeCache(RANK_CACHE_KEY, fresh)
+            }
+          }).catch(() => {})
+        }
       } catch (e) {
         if (!fundRank.value) {
           showToast('涨跌榜暂不可用，已展示最近缓存数据')

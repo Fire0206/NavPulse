@@ -400,7 +400,11 @@ async def _fetch_fund_rank_fresh(timeout_seconds: int = 12) -> dict[str, Any]:
             timeout=timeout_seconds,
         )
     except Exception as e:
-        logger.warning(f"实时拉取基金涨跌榜失败/超时: {e}")
+        logger.warning(
+            "实时拉取基金涨跌榜失败/超时: %s (%s)",
+            str(e) or "no-detail",
+            type(e).__name__,
+        )
         return {"date": "", "top": [], "bottom": [], "total_count": 0}
 
 
