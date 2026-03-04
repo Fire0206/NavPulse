@@ -553,6 +553,22 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 缓存为空（首次启动）：同样触发后台任务，返回空结构，前端自动重试
 - 后台刷新任务有 `_bg_refreshing` 锁防止重复触发
 
+**基金详情/估值 API 非阻塞策略**（`/api/valuation/{code}`, `/api/fund/{code}/detail`, `/api/fund/{code}/intraday`）：
+- `/api/valuation/{code}`：始终立即返回 `global_cache` 缓存，无缓存时返回空壳 `{_pending: true}` + 后台 `asyncio.create_task` 计算
+- `/api/fund/{code}/detail`：第一阶段 DB 并行查询（< 10ms），第二阶段估值如无缓存则后台异步，不阻塞
+- `/api/fund/{code}/intraday`：优先从 DB 读取已有快照（毫秒级），后台异步计算完整分时曲线
+- 后台估值刷新有 per-fund_code 锁（`_bg_valuation_locks`）防止重复触发
+
+**持仓/自选 API 非阻塞策略**（`/api/portfolio`, `/api/watchlist`）：
+- `/api/portfolio`：`force_refresh=true` 时立即返回缓存 + 后台 `asyncio.create_task` 刷新
+- `/api/watchlist`：立即从 `global_cache` 逐基金构建结果，无缓存的基金后台异步计算
+
+**前端基金详情秒开策略**（`FundDetailModal.js`）：
+- `open()` 优先从 `store.holdingsData` 或 `store.watchlistData` 提取预览数据立即展示
+- 后端 API 秒级返回缓存后替换预览数据
+- 若后端返回空壳数据（`estimate_change=0` + 无 stocks），3 秒后自动重拉
+- 30 秒轮询静默刷新 detail + intraday（`_silentRefresh`），无 loading 状态
+
 ---
 
 ## 七、前端架构

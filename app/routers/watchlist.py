@@ -3,6 +3,7 @@
 处理用户自选基金的增删查
 """
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from app.services.valuation_service import calculate_fund_estimate
 from app.state import global_cache
 from app.services.trading_calendar import is_market_open
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/watchlist", tags=["自选基金"])
 
 
@@ -23,7 +25,9 @@ async def get_watchlist(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """获取用户自选基金列表（带实时估值，休市时从缓存读取）"""
+    """
+    获取用户自选基金列表（始终立即返回缓存数据，后台静默刷新）
+    """
     try:
         watchlist = db.query(Watchlist).filter(
             Watchlist.user_id == current_user.id
@@ -33,15 +37,14 @@ async def get_watchlist(
             return {"funds": [], "count": 0}
 
         fund_codes = [w.fund_code for w in watchlist]
-        trading = is_market_open()
 
-        async def get_fund_info(code: str):
+        # ── 立即从缓存构建结果（毫秒级） ──
+        funds = []
+        need_refresh_codes = []
+        for code in fund_codes:
             cached = global_cache.get_fund_valuation(code)
-            # 休市时 + 缓存有效（无 error 且 estimate_change 不为 0） → 直接返回
-            if (cached and not trading
-                    and "error" not in cached
-                    and cached.get("estimate_change", 0) != 0):
-                return {
+            if cached and "error" not in cached:
+                funds.append({
                     "code": code,
                     "name": cached.get("fund_name", code),
                     "estimate_change": cached.get("estimate_change", 0),
@@ -49,41 +52,28 @@ async def get_watchlist(
                     "fund_type": cached.get("fund_type", ""),
                     "fund_type_label": cached.get("fund_type_label", ""),
                     "estimation_method": cached.get("estimation_method", ""),
-                }
-            # 其它情况（开盘中 / 缓存无效 / 缓存值为0） → 重新计算
-            try:
-                result = await calculate_fund_estimate(code)
-                return {
-                    "code": code,
-                    "name": result.get("fund_name", code),
-                    "estimate_change": result.get("estimate_change", 0),
-                    "data_date": result.get("data_date"),
-                    "fund_type": result.get("fund_type", ""),
-                    "fund_type_label": result.get("fund_type_label", ""),
-                    "estimation_method": result.get("estimation_method", ""),
-                }
-            except Exception:
-                if cached:
-                    return {
-                        "code": code,
-                        "name": cached.get("fund_name", code),
-                        "estimate_change": cached.get("estimate_change", 0),
-                        "data_date": cached.get("data_date"),
-                        "fund_type": cached.get("fund_type", ""),
-                        "fund_type_label": cached.get("fund_type_label", ""),
-                    }
-                return {
+                })
+            else:
+                # 无缓存 → 先返回空壳，后台刷新
+                funds.append({
                     "code": code,
                     "name": code,
                     "estimate_change": 0,
                     "data_date": None,
-                }
+                })
+                need_refresh_codes.append(code)
 
-        tasks = [get_fund_info(code) for code in fund_codes]
-        funds = await asyncio.gather(*tasks)
-
-        # 如果有任何基金触发了重新计算，更新时间戳
-        global_cache._update_timestamp()
+        # ── 后台静默刷新缺失缓存的基金（不阻塞响应） ──
+        if need_refresh_codes:
+            async def _bg_refresh():
+                for code in need_refresh_codes:
+                    try:
+                        result = await calculate_fund_estimate(code)
+                        if "error" not in result:
+                            global_cache.update_fund_valuation(code, result)
+                    except Exception as e:
+                        logger.warning("[BG-WATCH] %s 估值刷新失败: %s", code, e)
+            asyncio.create_task(_bg_refresh())
 
         return {"funds": funds, "count": len(funds)}
     except Exception as e:

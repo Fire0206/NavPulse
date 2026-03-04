@@ -132,8 +132,9 @@ export default {
       showTxPanel.value = false
       clearIntraday()
 
-      // ── 速显: 从已有的持仓数据中提取预览，立即展示 ──
+      // ── 速显: 从已有的持仓/自选数据中提取预览，立即展示 ──
       const existing = store.holdingsData?.funds?.find(f => f.code === code)
+        || store.watchlistData?.find?.(f => f.code === code)
       if (existing) {
         fundName.value = existing.name || name || code
         detail.value = {
@@ -141,7 +142,7 @@ export default {
           fund_name: existing.name || name || code,
           estimate_change: existing.estimate_change || 0,
           last_nav: existing.last_nav || 0,
-          has_holding: true,
+          has_holding: !!existing.shares,
           total_shares: existing.shares || 0,
           total_cost: existing.cost || 0,
           avg_cost_per_share: existing.avg_cost || 0,
@@ -158,6 +159,8 @@ export default {
       }
 
       loading.value = !detail.value  // 有预览则不显示全屏loading
+
+      // 后端 API 现在是秒级返回（缓存优先），不会阻塞
       Promise.all([
         loadDetail(code),
         loadIntraday(code),
@@ -165,18 +168,53 @@ export default {
 
       bsModal.show()
 
-      // 交易时段自动轮询日内数据
+      // 交易时段自动轮询（同时刷新 detail + intraday）
       intradayTimer = setInterval(() => {
-        if (intradayData.value?.is_live) loadIntraday(fundCode.value)
+        _silentRefresh(fundCode.value)
       }, 30000)
+    }
+
+    /** 静默刷新：后台拉取最新数据，不显示 loading，有新数据就替换 */
+    async function _silentRefresh(code) {
+      try {
+        const [d, i] = await Promise.all([
+          fetchFundDetail(code).catch(() => null),
+          fetchFundIntraday(code).catch(() => null),
+        ])
+        if (d) {
+          detail.value = d
+          const apiName = d?.fund_name
+          if (apiName && apiName !== code) fundName.value = apiName
+        }
+        if (i && i.points?.length) {
+          intradayData.value = i
+          await nextTick()
+          renderIntradayChart()
+        }
+      } catch (_) {}
     }
 
     async function loadDetail(code) {
       try {
-        detail.value = await fetchFundDetail(code)
-        const apiName = detail.value?.fund_name
+        const d = await fetchFundDetail(code)
+        detail.value = d
+        const apiName = d?.fund_name
         if (apiName && apiName !== code) {
           fundName.value = apiName
+        }
+        // 后端可能返回了缓存数据（estimate_change=0 + _pending），
+        // 后台正在计算中，3秒后再拉一次拿到最新值
+        if (d?.estimate_change === 0 && !d?.stocks?.length) {
+          setTimeout(async () => {
+            try {
+              const fresh = await fetchFundDetail(code)
+              if (fresh && (fresh.estimate_change !== 0 || fresh.stocks?.length)) {
+                detail.value = fresh
+                const n = fresh?.fund_name
+                if (n && n !== code) fundName.value = n
+              }
+            } catch (_) {}
+          }, 3000)
         }
       } catch (e) {
         try {
@@ -190,16 +228,30 @@ export default {
             fundName.value = fallbackName
           }
         } catch (_) {
-          showToast('获取详情失败')
+          if (!detail.value) showToast('获取详情失败')
         }
       }
     }
 
     async function loadIntraday(code) {
       try {
-        intradayData.value = await fetchFundIntraday(code)
+        const data = await fetchFundIntraday(code)
+        intradayData.value = data
         await nextTick()
         renderIntradayChart()
+        // 如果 DB 没有数据（后台正在计算），3 秒后重试
+        if (!data?.points?.length) {
+          setTimeout(async () => {
+            try {
+              const fresh = await fetchFundIntraday(code)
+              if (fresh?.points?.length) {
+                intradayData.value = fresh
+                await nextTick()
+                renderIntradayChart()
+              }
+            } catch (_) {}
+          }, 3000)
+        }
       } catch (_) {}
     }
 

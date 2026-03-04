@@ -36,29 +36,46 @@ router = APIRouter(tags=["基金"])
 
 # ==================== 基金估值 ====================
 
+# 后台估值刷新锁（per fund_code）
+_bg_valuation_locks: set[str] = set()
+
+
+async def _background_valuation_refresh(fund_code: str):
+    """后台静默刷新单只基金估值（不阻塞 API）"""
+    if fund_code in _bg_valuation_locks:
+        return
+    _bg_valuation_locks.add(fund_code)
+    try:
+        result = await calculate_fund_estimate(fund_code)
+        if "error" not in result:
+            global_cache.update_fund_valuation(fund_code, result)
+            logger.info("[BG-VAL] %s 后台估值刷新完成", fund_code)
+    except Exception as e:
+        logger.warning("[BG-VAL] %s 后台估值刷新失败: %s", fund_code, e)
+    finally:
+        _bg_valuation_locks.discard(fund_code)
+
+
 @router.get("/api/valuation/{fund_code}")
 async def get_fund_valuation(fund_code: str, force_refresh: bool = False):
     """
     单只基金估值 API（也用于穿透模态框）
-    优先从缓存读取；非交易时段返回当日临时估算/上一交易日官方涨跌幅
+    始终立即返回缓存数据；缓存缺失时触发后台计算。
+    force_refresh=true 时也触发后台刷新，但仍立即返回当前缓存。
     """
-    if not force_refresh:
-        cached = global_cache.get_fund_valuation(fund_code)
-        if cached:
-            return cached
+    cached = global_cache.get_fund_valuation(fund_code)
 
-    try:
-        result = await calculate_fund_estimate(fund_code)
-        if "error" in result:
-            raise HTTPException(status_code=400, detail=result["error"])
-        if is_market_open():
-            global_cache.update_fund_valuation(fund_code, result)
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    if force_refresh:
+        # 触发后台刷新，但立即返回当前缓存
+        asyncio.create_task(_background_valuation_refresh(fund_code))
+        return cached or {"fund_code": fund_code, "estimate_change": 0, "_pending": True}
+
+    if cached:
+        return cached
+
+    # 完全无缓存（新基金首次打开）→ 触发后台计算，返回空壳
+    asyncio.create_task(_background_valuation_refresh(fund_code))
+    return {"fund_code": fund_code, "estimate_change": 0, "_pending": True}
 
 
 # ==================== 基金历史净值 ====================
@@ -285,47 +302,6 @@ async def get_fund_intraday(fund_code: str):
     now       = dt.now(ZoneInfo("Asia/Shanghai"))
     today_str = now.strftime("%Y-%m-%d")
 
-    # ── 交易中：后台保存本分钟快照（异步，不阻塞返回） ──
-    if is_market_open():
-        async def _save_snapshot():
-            try:
-                val = await calculate_fund_estimate(fund_code)
-                if "error" not in val:
-                    est_change = val.get("estimate_change", 0)
-                    coverage   = val.get("coverage", 0)
-                    if coverage >= 30:
-                        time_str = now.strftime("%H:%M")
-                        sdb = SessionLocal()
-                        try:
-                            row = sdb.query(IntradayEstimate).filter(
-                                IntradayEstimate.fund_code  == fund_code,
-                                IntradayEstimate.trade_date == today_str,
-                                IntradayEstimate.time       == time_str,
-                            ).first()
-                            if row:
-                                row.estimate_change = est_change
-                            else:
-                                sdb.add(IntradayEstimate(
-                                    fund_code=fund_code, trade_date=today_str,
-                                    time=time_str, estimate_change=est_change,
-                                ))
-                            sdb.commit()
-                        finally:
-                            sdb.close()
-            except Exception as e:
-                logger.warning("[INTRADAY] 快照存储失败: %s", e)
-
-        # 不 await，fire-and-forget
-        asyncio.create_task(_save_snapshot())
-
-        # ── live 模式：直接从分时接口计算完整曲线（不受 DB 缺口影响）──
-        try:
-            result = await calculate_intraday_from_stocks(fund_code)
-            if result.get("points"):
-                return result
-        except Exception as e:
-            logger.warning("[INTRADAY] live 分时计算失败，回退 DB: %s", e)
-
     # ── 确定目标日期 ──
     target_date = today_str
     if not is_trading_day(now):
@@ -335,17 +311,7 @@ async def get_fund_intraday(fund_code: str):
                 target_date = d.strftime("%Y-%m-%d")
                 break
 
-    # ── 今日已收盘：和 live 一样直接调分时接口（完整无断点）──
-    if target_date == today_str:
-        try:
-            result = await calculate_intraday_from_stocks(fund_code)
-            if result.get("points"):
-                result["is_live"] = False
-                return result
-        except Exception as e:
-            logger.warning("[INTRADAY] 今日收盘分时计算失败，回退 DB: %s", e)
-
-    # ── 历史日期：从 DB 读取快照（上周五等）──
+    # ── 1. 优先从 DB 读取已有快照（毫秒级） ──
     def _load_points(date: str) -> list:
         sdb = SessionLocal()
         try:
@@ -362,21 +328,56 @@ async def get_fund_intraday(fund_code: str):
         finally:
             sdb.close()
 
-    points = _load_points(target_date)
-    if not points:
+    db_points = await asyncio.to_thread(_load_points, target_date)
+
+    # ── 2. 后台异步刷新分时数据（不阻塞返回） ──
+    async def _bg_refresh_intraday():
+        """后台计算完整分时曲线并存储快照"""
         try:
             result = await calculate_intraday_from_stocks(fund_code)
-            if result.get("points"):
-                result["is_live"] = False
-                return result
+            if not result or not result.get("points"):
+                return
+            # 同时保存估值快照
+            if is_market_open():
+                try:
+                    val = await calculate_fund_estimate(fund_code)
+                    if "error" not in val:
+                        est_change = val.get("estimate_change", 0)
+                        coverage = val.get("coverage", 0)
+                        if coverage >= 30:
+                            time_str = now.strftime("%H:%M")
+                            sdb = SessionLocal()
+                            try:
+                                row = sdb.query(IntradayEstimate).filter(
+                                    IntradayEstimate.fund_code  == fund_code,
+                                    IntradayEstimate.trade_date == today_str,
+                                    IntradayEstimate.time       == time_str,
+                                ).first()
+                                if row:
+                                    row.estimate_change = est_change
+                                else:
+                                    sdb.add(IntradayEstimate(
+                                        fund_code=fund_code, trade_date=today_str,
+                                        time=time_str, estimate_change=est_change,
+                                    ))
+                                sdb.commit()
+                            finally:
+                                sdb.close()
+                except Exception as e:
+                    logger.warning("[INTRADAY-BG] 快照存储失败: %s", e)
         except Exception as e:
-            logger.warning("[INTRADAY] 历史日分时回退计算失败: %s", e)
+            logger.warning("[INTRADAY-BG] 后台分时计算失败: %s", e)
 
+    # 交易时段或 DB 无数据时触发后台刷新
+    if is_market_open() or not db_points:
+        asyncio.create_task(_bg_refresh_intraday())
+
+    # ── 3. 立即返回 DB 数据（可能为空，前端会显示空图或骨架屏） ──
     return {
         "fund_code":  fund_code,
         "trade_date": target_date,
-        "is_live":    False,
-        "points":     points,
+        "is_live":    is_market_open(),
+        "points":     db_points,
     }
 
 
@@ -429,20 +430,13 @@ async def get_fund_detail(
             _get_fund_name_cached(), _get_valuation_fast(),
         )
 
-    # ── 第二阶段: 估值计算（如需要） ──
+    # ── 第二阶段: 估值（缓存优先，无缓存则返回空壳 + 后台刷新） ──
     valuation = valuation_fast
     if needs_valuation:
-        try:
-            val = await calculate_fund_estimate(fund_code)
-            if "error" not in val:
-                if is_market_open():
-                    global_cache.update_fund_valuation(fund_code, val)
-                valuation = val
-        except Exception:
-            pass
-        if not valuation:
-            valuation = {"fund_code": fund_code, "estimate_change": 0,
-                         "holdings": [], "fund_name": fund_code}
+        # 无缓存 → 返回空壳数据，同时后台异步计算（不阻塞本接口）
+        valuation = {"fund_code": fund_code, "estimate_change": 0,
+                     "holdings": [], "fund_name": fund_code}
+        asyncio.create_task(_background_valuation_refresh(fund_code))
 
     # 优先使用估值返回的名称
     val_name = valuation.get("fund_name", "")

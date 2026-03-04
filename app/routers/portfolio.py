@@ -2,6 +2,7 @@
 持仓管理路由
 处理用户基金持仓的增删查 + OCR 截图导入
 """
+import asyncio
 import logging
 from datetime import datetime
 
@@ -31,20 +32,32 @@ async def get_portfolio(
 ):
     """
     获取持仓看板数据 API（仅返回当前用户的持仓）
-    优先从缓存读取，休市时仍查数据库（只是不做实时估值爬取）
+    始终立即返回缓存数据；force_refresh 触发后台异步更新。
     """
-    # 优先从缓存读取
-    if not force_refresh:
-        cached = global_cache.get_portfolio(current_user.id)
+    cached = global_cache.get_portfolio(current_user.id)
+
+    if force_refresh:
+        # 触发后台刷新，立即返回当前缓存
+        async def _bg_portfolio_refresh():
+            try:
+                result = await get_portfolio_with_valuation_async(db, current_user.id)
+                global_cache.update_portfolio(current_user.id, result)
+                global_cache._update_timestamp()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("[BG-PORT] 持仓后台刷新失败: %s", e)
+        asyncio.create_task(_bg_portfolio_refresh())
         if cached and cached.get("funds"):
             return cached
 
-    # 无论是否开市，都尝试获取持仓数据
+    # 缓存有效 → 直接返回
+    if cached and cached.get("funds"):
+        return cached
+
+    # 完全无缓存（首次启动）→ 必须等待一次计算（否则返回空数据体验差）
     try:
         result = await get_portfolio_with_valuation_async(db, current_user.id)
         global_cache.update_portfolio(current_user.id, result)
-        if force_refresh:
-            global_cache._update_timestamp()
         return result
     except Exception as e:
         import traceback; traceback.print_exc()
