@@ -14,56 +14,78 @@
 body{
   font-family:'Inter','Noto Sans SC',ui-sans-serif,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
   min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:#F0F4FA;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1000px 480px at -10% -5%, rgba(37,99,235,.12), transparent 62%),
+    radial-gradient(1000px 420px at 110% 0%, rgba(37,99,235,.08), transparent 58%),
+    #EEF3FB;
+  -webkit-font-smoothing:antialiased;
   position:relative;overflow:hidden;
 }
 body::before{
   content:'';position:fixed;inset:0;z-index:0;
-  background:linear-gradient(135deg,#102057 0%,#2563EB 100%);
-  opacity:.07;
+  background:linear-gradient(135deg,#0F1F52 0%,#1D4ED8 55%,#4F8DF6 100%);
+  opacity:.06;
 }
 .auth-wrap{
-  width:100%;max-width:420px;padding:24px 16px;
+  width:100%;max-width:720px;padding:30px 20px;
   position:relative;z-index:1;animation:fadeUp .32s ease;
 }
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo{text-align:center;margin-bottom:32px}
 .auth-logo-icon{
   display:inline-flex;align-items:center;justify-content:center;
-  width:58px;height:58px;border-radius:16px;
-  background:linear-gradient(135deg,#102057 0%,#2563EB 100%);
-  box-shadow:0 8px 28px rgba(37,99,235,.32);margin-bottom:12px;
+  width:66px;height:66px;border-radius:18px;
+  background:linear-gradient(135deg,#0F1F52 0%,#2563EB 100%);
+  box-shadow:0 14px 34px rgba(37,99,235,.30);margin-bottom:14px;
+  border:1px solid rgba(255,255,255,.35);
 }
-.auth-logo-icon i{font-size:28px;color:#fff}
-.auth-logo h1{font-size:22px;font-weight:800;color:#0F172A;letter-spacing:.4px}
-.auth-logo p{font-size:12.5px;color:#94A3B8;margin-top:3px;letter-spacing:.3px}
+.auth-logo-icon i{font-size:30px;color:#fff}
+.auth-logo h1{font-size:38px;font-weight:800;color:#0F172A;letter-spacing:.6px;line-height:1.05}
+.auth-logo p{font-size:16px;color:#64748B;margin-top:8px;letter-spacing:.2px;font-weight:500}
 .auth-card{
-  background:#fff;border-radius:20px;padding:32px 28px;
-  box-shadow:0 1px 3px rgba(15,23,42,.06),0 12px 36px rgba(15,23,42,.08);
-  border:1px solid #E2E8F0;
+  background:rgba(255,255,255,.90);backdrop-filter:blur(10px);
+  border-radius:24px;padding:40px 38px;
+  box-shadow:0 1px 3px rgba(15,23,42,.06),0 18px 48px rgba(15,23,42,.10);
+  border:1px solid rgba(226,232,240,.95);
 }
-.auth-card label{font-size:13px;font-weight:600;color:#475569;margin-bottom:6px;display:block}
+.auth-card label{font-size:17px;font-weight:700;color:#334155;margin-bottom:8px;display:block}
 .form-control{
-  border:1.5px solid #E2E8F0;border-radius:10px;padding:11px 14px;
-  font-size:14px;transition:border-color .2s,box-shadow .2s;
+  border:1.5px solid #D8E1ED;border-radius:14px;padding:15px 16px;
+  font-size:28px;transition:border-color .2s,box-shadow .2s,background .2s;
+  min-height:64px;
 }
 .form-control:focus{
-  border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12);outline:none;
+  border-color:#2563EB;box-shadow:0 0 0 4px rgba(37,99,235,.18);outline:none;
+  background:#fff;
 }
 .btn-auth{
   background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;
-  border-radius:12px;padding:12px;font-size:15px;font-weight:700;
+  border-radius:14px;padding:16px;font-size:32px;font-weight:800;
   letter-spacing:.3px;color:#fff;width:100%;cursor:pointer;
-  box-shadow:0 4px 14px rgba(37,99,235,.3);transition:opacity .2s,transform .12s;
+  box-shadow:0 14px 32px rgba(37,99,235,.34);transition:opacity .2s,transform .12s,box-shadow .2s;
 }
-.btn-auth:hover{opacity:.92}.btn-auth:active{transform:scale(.98)}
+.btn-auth:hover{opacity:.94;box-shadow:0 18px 36px rgba(37,99,235,.38)}.btn-auth:active{transform:scale(.98)}
 .btn-auth:disabled{opacity:.6;cursor:not-allowed}
-.auth-footer{text-align:center;margin-top:16px;font-size:13.5px;color:#94A3B8}
-.auth-footer a{color:#2563EB;font-weight:500;text-decoration:none}
+.auth-footer{text-align:center;margin-top:20px;font-size:28px;color:#64748B;font-weight:600}
+.auth-footer a{color:#2563EB;font-weight:700;text-decoration:none}
 .auth-footer a:hover{text-decoration:underline}
-.alert{font-size:13px;border-radius:10px;padding:10px 14px;border:none}
+.alert{font-size:15px;border-radius:12px;padding:12px 14px;border:none}
 .alert-danger{background:rgba(239,68,68,.08);color:#DC2626}
 .alert-success{background:rgba(16,185,129,.08);color:#059669}
+
+@media (max-width: 768px){
+  .auth-wrap{max-width:520px;padding:24px 16px}
+  .auth-logo{margin-bottom:28px}
+  .auth-logo-icon{width:58px;height:58px;border-radius:16px;margin-bottom:12px}
+  .auth-logo-icon i{font-size:28px}
+  .auth-logo h1{font-size:22px}
+  .auth-logo p{font-size:13px;margin-top:4px}
+  .auth-card{padding:32px 28px;border-radius:20px}
+  .auth-card label{font-size:13px;margin-bottom:6px}
+  .form-control{font-size:15px;min-height:auto;padding:11px 14px;border-radius:10px}
+  .btn-auth{font-size:16px;padding:12px;border-radius:12px}
+  .auth-footer{margin-top:16px;font-size:14px;font-weight:500}
+}
 </style>
 </head>
 <body>
@@ -71,7 +93,7 @@ body::before{
   <div class="auth-logo">
     <div class="auth-logo-icon"><i class="bi bi-graph-up-arrow"></i></div>
     <h1>NavPulse</h1>
-    <p>基金实时估值 &middot; 创建账户</p>
+    <p>基金估值 &middot; 创建账户</p>
   </div>
   <div class="auth-card">
     <div class="alert alert-danger d-none" id="errMsg"></div>
