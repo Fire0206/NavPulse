@@ -94,13 +94,26 @@ export default {
       { immediate: true }
     )
 
+    // ── 基金类型标签 CSS class（与持有页保持一致） ──
+    function typeTagClass(f) {
+      const t = f.fund_type || ''
+      if (t.startsWith('qdii')) return 'fund-type-tag tag-qdii'
+      if (t === 'etf' || t === 'etf_linked') return 'fund-type-tag tag-etf'
+      if (t === 'bond') return 'fund-type-tag tag-bond'
+      if (t === 'money') return 'fund-type-tag tag-money'
+      if (t === 'mixed') return 'fund-type-tag tag-mixed'
+      if (t === 'stock') return 'fund-type-tag tag-stock'
+      if (f.fund_type_label) return 'fund-type-tag tag-other'
+      return ''
+    }
+
     return {
       store, sortOrder, refreshing, initialLoading, silentRefreshing,
       funds, hasFunds, watchCount,
       loadWatchlist, refresh, delWatchlist, setSortOrder,
       openAddModal, openDetailModal,
       viewRef, ptrState,
-      sign, cls,
+      sign, cls, typeTagClass,
     }
   },
   template: `
@@ -167,15 +180,7 @@ export default {
                  @click="openDetailModal(f.code, f.fund_name || f.name || f.code)">
               <div class="wi-info">
                 <div class="wi-name">{{ f.fund_name || f.name || f.code }}</div>
-                <div class="wi-code" style="display:flex;align-items:center;gap:4px">{{ f.code }}<span class="fund-type-tag" :class="{
-                  'tag-qdii': (f.fund_type||'').startsWith('qdii'),
-                  'tag-etf':  f.fund_type==='etf' || f.fund_type==='etf_linked',
-                  'tag-stock': f.fund_type==='stock',
-                  'tag-mixed': f.fund_type==='mixed',
-                  'tag-bond':  f.fund_type==='bond',
-                  'tag-money': f.fund_type==='money',
-                  'tag-other': f.fund_type_label && !(f.fund_type||'').startsWith('qdii') && f.fund_type!=='etf' && f.fund_type!=='etf_linked'
-                }" v-if="f.fund_type_label">{{ f.fund_type_label }}</span></div>
+                <div class="wi-code" style="display:flex;align-items:center;gap:4px">{{ f.code }}<span :class="typeTagClass(f)" v-if="f.fund_type_label">{{ f.fund_type_label }}</span></div>
               </div>
               <div class="wi-right">
                 <div class="wi-change" :class="cls(f.estimate_change || 0)">

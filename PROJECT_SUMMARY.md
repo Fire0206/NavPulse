@@ -1031,6 +1031,19 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. 列表模式下 `holding_profit_rate`（`.hl-rate`）新增正负色 class 绑定：`cls(f.holding_profit_rate || 0)`。
    3. 前端资源版本更新至 `app.js?v=20260304-6`，确保客户端加载最新 UI 逻辑。
 
+### 2026-03-04：自选页基金类型标签颜色与持有页统一
+
+- 现象：自选页中“混合型-偏股”标签显示为灰色，而持有页同类型为紫色（`tag-mixed`）。
+- 根因：自选页标签 class 同时命中 `tag-mixed` 与 `tag-other`，后者样式覆盖前者导致变灰。
+- 修改文件：
+   - `app/static/js/components/WatchlistView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. 为自选页新增 `typeTagClass(f)`，逻辑与持有页完全一致。
+   2. 模板中改为直接使用 `:class="typeTagClass(f)"`，避免多 class 冲突。
+   3. 前端资源版本升级到 `app.js?v=20260304-7`，确保客户端立即生效。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。
