@@ -53,6 +53,11 @@ const app = createApp({
           store.isTradingTime = data.trading.is_trading_time
           store.tradingStatusText = data.trading.status_text || ''
         }
+        if (data.official_nav) {
+          store.officialNavUpdated = !!data.official_nav.is_updated
+          store.officialNavUpdatedCount = data.official_nav.updated_count || 0
+          store.officialNavTotalTracked = data.official_nav.total_tracked || 0
+        }
       } catch (_) {}
     }
 

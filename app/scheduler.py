@@ -289,6 +289,24 @@ async def post_close_cache_refresh():
         logger.error(f"[POST-CLOSE] 收盘后刷新异常: {e}")
 
 
+async def refresh_official_nav_and_cache_sync() -> int:
+    """
+    夜间官方净值刷新任务：
+      1) 拉取并写入官方净值（覆盖临时估值）
+      2) 若有更新，立即重算基金估值与用户持仓缓存
+      3) 更新全局时间戳，前端状态栏可见“已更新”
+    """
+    updated = await update_official_navs()
+    if updated > 0:
+        logger.info(f"[OFFICIAL_SYNC] 官方净值更新 {updated} 只，开始同步估值缓存")
+        await update_fund_valuations()
+        await update_user_portfolios()
+        global_cache._update_timestamp()
+    else:
+        logger.info("[OFFICIAL_SYNC] 本轮无官方净值发布，保持现有缓存")
+    return updated
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     初始化并返回调度器
@@ -348,7 +366,7 @@ def init_scheduler() -> AsyncIOScheduler:
 
     # ── 19:00 第一次尝试拉取官方净值（周一至周五）
     scheduler.add_job(
-        update_official_navs,
+        refresh_official_nav_and_cache_sync,
         CronTrigger(
             hour="19",
             minute="0",
@@ -361,7 +379,7 @@ def init_scheduler() -> AsyncIOScheduler:
 
     # ── 20:30 第二次尝试（若 19:00 时官方未发布）
     scheduler.add_job(
-        update_official_navs,
+        refresh_official_nav_and_cache_sync,
         CronTrigger(
             hour="20",
             minute="30",
@@ -375,7 +393,7 @@ def init_scheduler() -> AsyncIOScheduler:
     # ── 22:00 最终尝试 + 全量数据补全（周一至周五）
     async def _final_nav_update():
         """22:00 最终官方净值拉取 + 缺失数据全量补全"""
-        updated = await update_official_navs()
+        updated = await refresh_official_nav_and_cache_sync()
         logger.info(f"[FINAL_NAV] 22:00 最终尝试：{updated} 只基金官方净值已更新")
         await batch_fill_all_gaps()
         logger.info("[FINAL_NAV] 全量数据补全完成")
@@ -395,7 +413,7 @@ def init_scheduler() -> AsyncIOScheduler:
     # ── 15:05-21:55 每 5 分钟轮询一次官方净值（停盘后持续检查基金是否发布当日净值）
     # 注：22:00 由 official_nav_final 负责最终尝试；15:05 由 save_estimate_navs 单独处理
     scheduler.add_job(
-        update_official_navs,
+        refresh_official_nav_and_cache_sync,
         CronTrigger(
             hour="15-21",
             minute="*/5",

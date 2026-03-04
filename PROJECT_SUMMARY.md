@@ -935,6 +935,25 @@ global_cache.scheduler_running  # bool — 调度器状态
    3. 基金名称映射 `ak.fund_name_em()` 增加 12 秒超时保护，超时回退历史缓存。
    4. 弹窗识别提示改为可操作文案（建议裁剪截图重试）。
    5. 前端资源版本升级至 `app.js?v=20260305-21`。
+
+### 2026-03-05：官方净值发布后自动同步缓存并前端显示“已更新”
+
+- 需求：基金公司夜间发布准确净值后，系统应自动更新并在前端明确显示“已更新”；同时将官方数据纳入估值链路，避免页面停留在收盘临时估值。
+- 修改文件：
+   - `app/scheduler.py`
+   - `app/services/fund_service.py`
+   - `app/routers/system.py`
+   - `app/static/js/store.js`
+   - `app/static/js/app.js`
+   - `app/static/js/components/StatusBar.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. 新增 `refresh_official_nav_and_cache_sync()`：官方净值更新成功后，立即重算基金估值与用户持仓缓存并更新时间戳。
+   2. 夜间官方净值相关调度任务（15:05-21:55 轮询、19:00、20:30、22:00）统一使用该同步函数。
+   3. 新增 `get_official_nav_progress()` 并在 `/api/status` 返回 `official_nav` 进度。
+   4. 前端状态栏在收盘后展示“官方净值已更新 x/y”，明确区分临时估值与官方已发布状态。
+   5. 前端资源版本升级到 `app.js?v=20260305-22`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 

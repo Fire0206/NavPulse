@@ -8,6 +8,7 @@ from app.services.valuation_service import get_cache_info, clear_cache
 from app.state import global_cache
 from app.scheduler import get_scheduler_status
 from app.services.trading_calendar import get_trading_status
+from app.services.fund_service import get_official_nav_progress
 
 router = APIRouter(tags=["系统管理"])
 
@@ -52,4 +53,5 @@ async def get_system_status():
         "scheduler_running": global_cache.scheduler_running,
         "scheduler": get_scheduler_status(),
         "trading": trading,
+        "official_nav": get_official_nav_progress(),
     }

@@ -1150,6 +1150,62 @@ async def update_official_navs(fund_codes: set | None = None) -> int:
     return updated
 
 
+def get_official_nav_progress(target_date: str | None = None) -> dict[str, Any]:
+    """
+    获取当日官方净值发布进度（供 /api/status 前端展示）
+    返回:
+      {
+        "date": "YYYY-MM-DD",
+        "updated_count": 10,
+        "total_tracked": 18,
+        "is_updated": True,
+        "all_updated": False,
+      }
+    """
+    from app.models import FundNavHistory
+    from zoneinfo import ZoneInfo
+
+    day = target_date or datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
+    codes = _get_all_tracked_codes()
+    total = len(codes)
+    if total == 0:
+        return {
+            "date": day,
+            "updated_count": 0,
+            "total_tracked": 0,
+            "is_updated": False,
+            "all_updated": False,
+        }
+
+    db = SessionLocal()
+    try:
+        rows = db.query(FundNavHistory.fund_code).filter(
+            FundNavHistory.date == day,
+            FundNavHistory.is_estimate == 0,
+            FundNavHistory.nav > 0,
+        ).all()
+        official_codes = {r.fund_code for r in rows}
+        updated = len(codes & official_codes)
+        return {
+            "date": day,
+            "updated_count": updated,
+            "total_tracked": total,
+            "is_updated": updated > 0,
+            "all_updated": total > 0 and updated >= total,
+        }
+    except Exception as e:
+        logger.warning(f"读取官方净值进度失败: {e}")
+        return {
+            "date": day,
+            "updated_count": 0,
+            "total_tracked": total,
+            "is_updated": False,
+            "all_updated": False,
+        }
+    finally:
+        db.close()
+
+
 # 
 #  向后兼容：保留旧函数名供内部调用
 # 

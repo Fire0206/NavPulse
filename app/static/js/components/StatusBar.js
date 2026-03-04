@@ -5,8 +5,11 @@ export default {
   name: 'StatusBar',
   setup() {
     const statusText = computed(() => {
+      const navUpdatedText = store.officialNavUpdated
+        ? ` | 官方净值已更新 ${store.officialNavUpdatedCount}/${store.officialNavTotalTracked}`
+        : ''
       if (store.tradingStatusText && !store.isTradingTime) {
-        return store.tradingStatusText + ' | 数据更新于 ' + store.lastUpdateTime
+        return store.tradingStatusText + navUpdatedText + ' | 数据更新于 ' + store.lastUpdateTime
       }
       if (store.schedulerRunning) {
         return '数据更新于: ' + store.lastUpdateTime

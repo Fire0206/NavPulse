@@ -30,6 +30,11 @@ export const store = reactive({
   isTradingTime: false,
   tradingStatusText: '',
 
+  // 官方净值发布状态
+  officialNavUpdated: false,
+  officialNavUpdatedCount: 0,
+  officialNavTotalTracked: 0,
+
   // Toast 消息内容
   toastMsg: '',
 })
@@ -104,6 +109,11 @@ export async function refreshStatus() {
     if (data.trading) {
       store.isTradingTime = data.trading.is_trading_time
       store.tradingStatusText = data.trading.status_text || ''
+    }
+    if (data.official_nav) {
+      store.officialNavUpdated = !!data.official_nav.is_updated
+      store.officialNavUpdatedCount = data.official_nav.updated_count || 0
+      store.officialNavTotalTracked = data.official_nav.total_tracked || 0
     }
   } catch (_) {}
 }
