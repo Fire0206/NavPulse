@@ -16,6 +16,7 @@ from app.services.market_service import (
     get_market_indices,
     get_stock_distribution,
     get_sector_list,
+    get_fund_rank,
 )
 from app.services.valuation_service import calculate_fund_estimate
 from app.services.portfolio_service import get_portfolio_with_valuation_async
@@ -204,6 +205,23 @@ async def update_user_portfolios():
         logger.error(f"[ERROR] 更新用户持仓异常: {e}")
 
 
+async def update_fund_rank_data():
+    """
+    更新基金涨跌榜缓存（含 SQLite 持久化）
+    由调度器后台定时触发，避免依赖页面访问触发更新。
+    """
+    try:
+        result = await get_fund_rank(force_refresh=True)
+        top_n = len(result.get("top") or [])
+        bottom_n = len(result.get("bottom") or [])
+        if top_n or bottom_n:
+            logger.info(f"[OK] 基金涨跌榜更新完成: top={top_n}, bottom={bottom_n}")
+        else:
+            logger.info("[SKIP] 基金涨跌榜本次未获取到新数据，保留旧缓存")
+    except Exception as e:
+        logger.warning(f"基金涨跌榜更新失败: {e}")
+
+
 async def update_all_data():
     """
     完整数据更新任务
@@ -227,7 +245,10 @@ async def update_all_data():
         # 2. 更新基金估值
         await update_fund_valuations()
         
-        # 3. 更新用户持仓
+        # 3. 更新基金涨跌榜（不依赖页面触发）
+        await update_fund_rank_data()
+
+        # 4. 更新用户持仓
         await update_user_portfolios()
         
         elapsed = (datetime.now() - start_time).total_seconds()
@@ -257,6 +278,7 @@ async def post_close_cache_refresh():
 
         # 2. 基金估值 + 用户持仓
         await update_fund_valuations()
+        await update_fund_rank_data()
         await update_user_portfolios()
 
         # 3. 保存临时净值
@@ -443,6 +465,7 @@ async def start_scheduler():
                     if not _has_valid_market:
                         await _update_market_data_impl()
                     await update_fund_valuations()
+                    await update_fund_rank_data()
                     await update_user_portfolios()
                 else:
                     logger.info(

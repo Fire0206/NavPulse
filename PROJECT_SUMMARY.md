@@ -906,6 +906,18 @@ global_cache.scheduler_running  # bool — 调度器状态
    1. 前端仅在涨跌榜日期为空或非当日时才触发 `force_refresh`，显著降低无意义强刷。
    2. 后端日志增加异常类型输出（如 `TimeoutError`），即使无 message 也可定位问题。
    3. 前端版本升级到 `app.js?v=20260305-20`。
+
+### 2026-03-05：调度器纳入基金涨跌榜后台定时更新（脱离页面触发）
+
+- 需求：网站运行期间应按既定分钟间隔在后台自动更新行情/基金数据，不依赖用户点进行情或基金页触发。
+- 修改文件：
+   - `app/scheduler.py`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. 新增 `update_fund_rank_data()` 调度任务逻辑，定时刷新基金涨跌榜缓存并持久化到 SQLite。
+   2. `update_all_data()` 主链路增加涨跌榜刷新步骤（与行情/估值/持仓同周期执行）。
+   3. `post_close_cache_refresh()` 与启动期 `_deferred_first_fetch()` 同步纳入涨跌榜刷新，保证不开页面也持续可用。
+   4. 结果：基金涨跌榜、行情、基金估值、用户持仓均由后台定时任务统一驱动，页面只读缓存。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
