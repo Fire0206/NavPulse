@@ -56,30 +56,30 @@ const THEMES = [
     shadowRgb: '16, 185, 129',
   },
   {
-    id: 'light', name: '高级浅色', icon: 'bi-sun-fill',
-    primary: '#2563EB', primaryDark: '#1D4ED8', primaryLight: '#EFF6FF', secondary: '#93C5FD',
-    gradient: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #60A5FA 100%)',
-    bg: '#EEF3FB',
+    id: 'light', name: 'light', icon: 'bi-sun-fill',
+    primary: '#1F2937', primaryDark: '#111827', primaryLight: '#F3F4F6', secondary: '#9CA3AF',
+    gradient: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)',
+    bg: '#FFFFFF',
     cardBg: '#FFFFFF',
-    textMain: '#0F172A',
-    textSecondary: '#475569',
-    textLight: '#94A3B8',
-    border: '#E2E8F0',
-    borderHover: '#CBD5E1',
-    shadowRgb: '37, 99, 235',
+    textMain: '#111111',
+    textSecondary: '#444444',
+    textLight: '#777777',
+    border: '#E5E7EB',
+    borderHover: '#D1D5DB',
+    shadowRgb: '17, 17, 17',
   },
   {
-    id: 'dark', name: '高级深色', icon: 'bi-moon-stars-fill',
-    primary: '#7C93FF', primaryDark: '#5F78F2', primaryLight: '#202B46', secondary: '#93C5FD',
-    gradient: 'linear-gradient(135deg, #111827 0%, #1F2937 55%, #334155 100%)',
-    bg: '#0B1120',
-    cardBg: '#141C2E',
-    textMain: '#E2E8F0',
-    textSecondary: '#B8C3D6',
-    textLight: '#8092AE',
-    border: '#273449',
-    borderHover: '#344664',
-    shadowRgb: '124, 147, 255',
+    id: 'dark', name: 'dark', icon: 'bi-moon-stars-fill',
+    primary: '#2A2A2A', primaryDark: '#111111', primaryLight: '#1A1A1A', secondary: '#666666',
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)',
+    bg: '#000000',
+    cardBg: '#0A0A0A',
+    textMain: '#F5F5F5',
+    textSecondary: '#CFCFCF',
+    textLight: '#9A9A9A',
+    border: '#1F1F1F',
+    borderHover: '#2A2A2A',
+    shadowRgb: '0, 0, 0',
   },
 ]
 
@@ -101,13 +101,15 @@ function applyTheme(theme) {
   root.style.setProperty('--surface-soft', `rgba(${theme.shadowRgb}, 0.10)`)
   root.style.setProperty('--surface-strong', `rgba(${theme.shadowRgb}, 0.16)`)
   root.style.setProperty('--focus-ring', `rgba(${theme.shadowRgb}, 0.24)`)
-  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(7, 12, 24, 0.72)' : 'rgba(255, 255, 255, 0.80)')
-  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(20, 28, 46, .92)' : 'rgba(255,255,255,.92)')
-  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.12)')
-  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.20)')
+  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(0, 0, 0, 0.78)' : 'rgba(255, 255, 255, 0.86)')
+  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(10, 10, 10, .96)' : 'rgba(255,255,255,.96)')
+  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.92)')
+  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(17,17,17,.08)')
   root.style.setProperty('--bg-gradient', theme.id === 'dark'
-    ? 'radial-gradient(1000px 460px at -10% -5%, rgba(124,147,255,.16), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(59,130,246,.14), transparent 58%), #0B1120'
-    : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)
+    ? '#000000'
+    : theme.id === 'light'
+      ? '#FFFFFF'
+      : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)
   root.style.setProperty('--shadow-soft', `0 8px 24px rgba(${theme.shadowRgb}, 0.12)`)
   root.style.setProperty('--shadow-card-hover', `0 8px 28px rgba(${theme.shadowRgb}, 0.16)`)
 }

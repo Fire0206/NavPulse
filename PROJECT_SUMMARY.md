@@ -21,7 +21,7 @@
 5. **基金历史净值** — 历史净值走势图
 6. **联接基金穿透** — 自动识别联接基金并穿透到底层 ETF 真实持仓
 7. **OCR 截图导入** — 拍照/上传支付宝持仓截图，自动识别基金名称+市值+收益并批量导入
-8. **设置中心** — 多主题色切换（6色：樱花粉/天空蓝/星空紫/薄荷绿/高级浅色/light/高级深色/dark）、隐私模式、缓存管理、系统信息
+8. **设置中心** — 多主题色切换（6色：樱花粉/天空蓝/星空紫/薄荷绿/light（纯白风）/dark（纯黑风））、隐私模式、缓存管理、系统信息
 
 ---
 
@@ -740,7 +740,20 @@ global_cache.scheduler_running  # bool — 调度器状态
 9. **休市估值显示**：非交易时段 `get_fund_detail` 和 `calculate_fund_estimate` 优先使用历史净值真实涨跌幅
 10. **缓存策略**：cache-first + 骨架屏 + 后台静默刷新（silent-spinner）
 11. **SQLite WAL 模式**：`database.py` 启用 WAL + busy_timeout=5000ms，提升多 worker 并发性能
-12. **多主题色支持**：6 种主题（樱花粉/天空蓝/星空紫/薄荷绿/高级浅色 light/高级深色 dark），CSS 变量 + localStorage 持久化（含旧主题 ID 迁移：orange→light，teal→green）
+12. **多主题色支持**：6 种主题（樱花粉/天空蓝/星空紫/薄荷绿/light（纯白风）/dark（纯黑风）），CSS 变量 + localStorage 持久化（含旧主题 ID 迁移：orange→light，teal→green）
+
+### 2026-03-05：主题命名与风格调整（light / dark）
+
+- 需求：将“高级浅色/高级黑色（深色）”统一命名为 `light` / `dark`，并改为纯白风与纯黑风。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `README.md`
+   - `PROJECT_SUMMARY.md`
+- 实现内容：
+   1. 设置页主题名称改为 `light`、`dark`。
+   2. `light` 主题调整为纯白背景 + 黑灰中性色文本体系。
+   3. `dark` 主题调整为纯黑背景 + 灰白中性色文本体系。
+   4. 主题应用逻辑中将 `light/dark` 的背景渐变分别固定为 `#FFFFFF` / `#000000`，移除原有彩色晕染。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
