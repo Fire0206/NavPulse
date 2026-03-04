@@ -297,19 +297,36 @@ export default {
       pts.forEach(p => { dataMap[p.time] = p.change })
       const rawData = fullTimes.map(t => dataMap[t] !== undefined ? dataMap[t] : null)
 
-      // ── 异常尖刺过滤：将"孤立的 0%"替换为 null ──
-      // 当某个点为 0，而前后各取最多3个有效点的均值绝对值 > 0.5% 时，视为采集失败的坏点
+      // ── 异常尖刺过滤：将可疑的“孤立 0%”平滑替换，避免图上出现断点 ──
+      // 规则：若 0 点邻近有效值绝对均值 > 0.5%，用邻近值插值/前值替代，而不是置为 null
       const data = rawData.map((v, i) => {
         if (v !== 0) return v
-        // 收集前3个有效邻居
+
         const neighbors = []
-        for (let di = 1; di <= 3 && neighbors.length < 3; di++) {
+        for (let di = 1; di <= 4 && neighbors.length < 4; di++) {
           if (i - di >= 0 && rawData[i - di] !== null && rawData[i - di] !== 0) neighbors.push(rawData[i - di])
           if (i + di < rawData.length && rawData[i + di] !== null && rawData[i + di] !== 0) neighbors.push(rawData[i + di])
         }
         if (neighbors.length === 0) return v
-        const avg = neighbors.reduce((s, x) => s + Math.abs(x), 0) / neighbors.length
-        return avg > 0.5 ? null : v  // 绝对均值 > 0.5% → 坏点，替为 null
+
+        const avgAbs = neighbors.reduce((s, x) => s + Math.abs(x), 0) / neighbors.length
+        if (avgAbs <= 0.5) return v
+
+        let prev = null
+        let next = null
+        for (let li = i - 1; li >= 0; li--) {
+          const lv = rawData[li]
+          if (lv !== null && lv !== 0) { prev = lv; break }
+        }
+        for (let ri = i + 1; ri < rawData.length; ri++) {
+          const rv = rawData[ri]
+          if (rv !== null && rv !== 0) { next = rv; break }
+        }
+
+        if (prev !== null && next !== null) return Number(((prev + next) / 2).toFixed(4))
+        if (prev !== null) return prev
+        if (next !== null) return next
+        return v
       })
 
       // ── 颜色：跟随最新有效値（上涨=红，下跌=绿）──
