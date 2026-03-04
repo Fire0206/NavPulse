@@ -227,7 +227,7 @@ async def _get_fx_rate_change() -> dict | None:
 #  核心估值函数 (async + TTLCache)
 # ══════════════════════════════════════════════════════════
 
-async def calculate_fund_estimate(fund_code: str, *, force_trading: bool = False) -> dict:
+async def calculate_fund_estimate(fund_code: str) -> dict:
     """
     计算基金实时估值（异步 + TTLCache）
 
@@ -237,10 +237,6 @@ async def calculate_fund_estimate(fund_code: str, *, force_trading: bool = False
       - 场内 ETF      → ETF 场内实时价格
       - 普通股票/混合  → 重仓股实时行情加权（原始算法）
       - 债券/货币      → 仅返回历史净值
-
-    Args:
-        fund_code: 基金代码
-        force_trading: 强制走交易时段估值算法（用于非交易时段调试/验证）
 
     缓存策略:
       Hit  → 直接返回内存数据，< 1ms
@@ -267,8 +263,6 @@ async def calculate_fund_estimate(fund_code: str, *, force_trading: bool = False
     """
     from app.services.trading_calendar import is_market_open
 
-    market_open = is_market_open() or force_trading
-
     # ── 0. 基金分类（决定估值策略） ──
     try:
         from app.services.fund_classifier import classify_fund
@@ -278,24 +272,23 @@ async def calculate_fund_estimate(fund_code: str, *, force_trading: bool = False
         from app.services.fund_classifier import FundClassification
         classification = FundClassification("other", "weighted_holdings")
 
-    # ── 1. 查缓存（force_trading 模式跳过缓存） ──
-    if not force_trading:
-        async with _cache_lock:
-            cached = _cache.get(fund_code)
-        if cached is not None:
-            is_qdii = classification.estimation_method == "overseas_index"
-            # 非交易时段：
-            #   国内基金 → 跳过交易时段缓存，用历史净值
-            #   QDII    → 海外指数缓存(60s)比估值缓存(300s)更短，也跳过重新获取
-            if not market_open and not cached.get("is_closed"):
-                pass  # 跳过缓存，重新计算
-            elif is_qdii and not cached.get("is_closed"):
-                pass  # QDII 开盘时段也需要更频繁刷新
-            else:
-                return {**cached, "cached": True}
+    # ── 1. 查缓存 ──
+    async with _cache_lock:
+        cached = _cache.get(fund_code)
+    if cached is not None:
+        is_qdii = classification.estimation_method == "overseas_index"
+        # 非交易时段：
+        #   国内基金 → 跳过交易时段缓存，用历史净值
+        #   QDII    → 海外指数缓存(60s)比估值缓存(300s)更短，也跳过重新获取
+        if not is_market_open() and not cached.get("is_closed"):
+            pass  # 跳过缓存，重新计算
+        elif is_qdii and not cached.get("is_closed"):
+            pass  # QDII 开盘时段也需要更频繁刷新
+        else:
+            return {**cached, "cached": True}
 
     # ── 2. 非交易时段 ──
-    if not market_open:
+    if not is_market_open():
         # QDII 基金: A股休市时海外市场可能仍在交易，尝试获取海外指数
         if classification.estimation_method == "overseas_index":
             qdii_result = await _estimate_qdii_fund(

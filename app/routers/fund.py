@@ -57,23 +57,12 @@ async def _background_valuation_refresh(fund_code: str):
 
 
 @router.get("/api/valuation/{fund_code}")
-async def get_fund_valuation(
-    fund_code: str,
-    force_refresh: bool = False,
-    force_estimate: bool = False,
-):
+async def get_fund_valuation(fund_code: str, force_refresh: bool = False):
     """
     单只基金估值 API（也用于穿透模态框）
     始终立即返回缓存数据；缓存缺失时触发后台计算。
     force_refresh=true 时也触发后台刷新，但仍立即返回当前缓存。
-    force_estimate=true 时，跳过缓存 + 跳过休市检查，强制执行估值引擎并直接返回结果。
     """
-    # ── force_estimate: 强制实时计算（调试用，非交易时段验证算法） ──
-    if force_estimate:
-        result = await calculate_fund_estimate(fund_code, force_trading=True)
-        result["_force_estimate"] = True
-        return result
-
     cached = global_cache.get_fund_valuation(fund_code)
 
     if force_refresh:

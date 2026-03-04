@@ -811,6 +811,19 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. 文本色从纯白降为柔和灰白（`textMain/textSecondary/textLight` 全量下调）。
    3. 主色与边框改为冷灰色，提升边界可见性并降低刺眼感。
    4. `overlay/nav/glass` 相关变量同步改为灰调深色。
+
+### 2026-03-05：dark 模式白字可读性二次优化（含“添加基金”按钮）
+
+- 需求：dark 下“添加基金”等主操作区域白字不清晰，要求整体提高白字可读性。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. dark 主题 `primary/primaryDark` 改为更深的高级灰，确保白字按钮对比度充足。
+   2. dark 的背景、卡片、边框、文字色做成同一灰阶体系，减少“发白看不清”情况。
+   3. `overlay/nav` 深度同步微调，保证顶部和浮层在 dark 下清晰。
+   4. 前端资源版本升级到 `app.js?v=20260305-16`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
