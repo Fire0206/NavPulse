@@ -295,7 +295,15 @@ export default {
       // 映射数据
       const dataMap = {}
       pts.forEach(p => { dataMap[p.time] = p.change })
-      const rawData = fullTimes.map(t => dataMap[t] !== undefined ? dataMap[t] : null)
+      const rawData = []
+      let carryVal = null
+      for (const t of fullTimes) {
+        const v = dataMap[t]
+        if (v !== undefined && v !== null && Number.isFinite(v)) {
+          carryVal = v
+        }
+        rawData.push(carryVal)
+      }
 
       // ── 异常尖刺过滤：将可疑的“孤立 0%”平滑替换，避免图上出现断点 ──
       // 规则：若 0 点邻近有效值绝对均值 > 0.5%，用邻近值插值/前值替代，而不是置为 null
@@ -359,7 +367,7 @@ export default {
         },
         series: [{
           type: 'line', data,
-          connectNulls: false,   // 断网期间保留真实缺口
+          connectNulls: true,
           smooth: false, symbol: 'none',
           lineStyle: { color: lineColor, width: 1.8 },
           areaStyle: {

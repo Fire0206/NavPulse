@@ -952,6 +952,20 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 本地验证：
    - `FundDetailModal.js` 诊断通过，无语法错误。
 
+### 2026-03-04：实时走势“绝对不断线”最终修复（前端双保险 + 缓存更新）
+
+- 背景：部分终端仍出现断点，排查发现前端仍可能产生 `null` 点位，且旧静态资源缓存导致修复未生效。
+- 修改文件：
+   - `app/static/js/components/FundDetailModal.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复内容：
+   1. **前向填充原始序列**：`rawData` 改为按分钟 carry-forward，不再直接写入 `null`。
+   2. **图表强制连线**：ECharts `connectNulls` 改为 `true`，即使边缘场景也不断线。
+   3. **静态资源缓存击穿**：`index.html` 的 `app.js` 增加版本参数 `?v=20260304-3`，强制客户端拉取最新脚本。
+- 本地验证：
+   - `FundDetailModal.js` 与 `index.html` 诊断通过，无错误。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。
