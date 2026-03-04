@@ -998,6 +998,25 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 本地验证：
    - `GET /api/fund/024195/intraday` 返回：`points=0, no_intraday=True, reason=nav_history_only`。
 
+### 2026-03-04：联接基金智能穿透增强（名称匹配 + 历史净值相关性反推）
+
+- 背景：部分联接基金在 akshare 持仓接口中返回空，导致无法识别底层 ETF，估值退化为 `nav_history`。
+- 修改文件：
+   - `app/services/fund_service.py`
+   - `app/routers/fund.py`
+   - `PROJECT_SUMMARY.md`
+- 核心增强：
+   1. **智能推断底层 ETF**：新增 `_infer_linked_etf_code()`，先做基金名称相似度匹配，再用历史净值日收益相关性校验候选。
+   2. **严格候选约束**：底层候选仅允许场内 ETF 代码（`51/15/56/58/52/16` 开头），避免误匹配到联接份额（如 `024194`）。
+   3. **无持仓时兜底穿透**：`_sync_fetch_portfolio()` 在原始持仓为空时自动尝试穿透推断 ETF 并拉取其持仓。
+   4. **缓存自愈**：发现 DB 缓存中的 `penetrated_from` 不是场内 ETF 代码时自动触发刷新修正。
+   5. **持久化策略改进**：即使仅拿到 `penetrated_from`（无持仓）也允许写入缓存，供后续估值链路使用。
+   6. **intraday 守卫细化**：`fund.py` 中 `nav_history` 守卫仅在确实无持仓分钟源时生效；若已穿透拿到持仓，继续输出分钟走势。
+- 结果（024195）：
+   - `penetrated_from` 由错误的 `024194` 修正为场内 ETF `159206`。
+   - `get_fund_portfolio('024195')` 返回 `holdings_count=15`。
+   - `/api/fund/024195/intraday` 返回 `points=242`（09:30-15:00 完整分钟序列）。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。

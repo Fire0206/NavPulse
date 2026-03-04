@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import re
+from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, date as date_type
 from typing import Any
@@ -37,6 +38,7 @@ _executor = ThreadPoolExecutor(max_workers=6, thread_name_prefix="fund_svc")
 # 正在进行后台更新的基金集合（防止重复触发）
 _bg_updating: set = set()
 _bg_portfolio_updating: set = set()
+_linked_etf_infer_cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
 
 # 基金名称内存缓存（TTL 1h）
 _name_cache: TTLCache = TTLCache(maxsize=2000, ttl=3600)
@@ -105,6 +107,160 @@ def _is_etf_code(code: str, name: str = "") -> bool:
     if name and 'ETF' in name.upper():
         return True
     return False
+
+
+def _is_etf_trading_code(code: str) -> bool:
+    """场内 ETF 代码格式判断（用于联接基金底层 ETF 候选）"""
+    c = str(code).strip()
+    return len(c) == 6 and c[:2] in {"51", "15", "56", "58", "52", "16"}
+
+
+def _normalize_linked_name(name: str) -> str:
+    """标准化联接基金名称，便于匹配底层 ETF 名称"""
+    if not name:
+        return ""
+    s = str(name).upper().replace(" ", "")
+    s = re.sub(r"（[^）]*）|\([^\)]*\)", "", s)
+    s = re.sub(r"发起式|发起", "", s)
+    s = re.sub(r"联接[A-Z]?$|联接[ABCHIR]类?$", "", s)
+    s = re.sub(r"[ABCHIR]类$", "", s)
+    s = s.replace("基金", "")
+    return s
+
+
+def _extract_etf_core(name: str) -> str:
+    """提取 ETF 核心名称（去管理人前缀、保留指数主题）"""
+    n = _normalize_linked_name(name)
+    if not n:
+        return ""
+    idx = n.find("ETF")
+    if idx != -1:
+        n = n[:idx + 3]
+
+    keyword_hits = [
+        n.find(k) for k in (
+            "中证", "国证", "沪深", "上证", "深证", "创业板", "科创", "恒生", "纳指", "标普", "卫星", "通信", "半导体",
+        ) if n.find(k) != -1
+    ]
+    if keyword_hits:
+        n = n[min(keyword_hits):]
+    return n
+
+
+def _calc_return_corr(series_a: list[float], series_b: list[float]) -> float:
+    """计算两组收益序列皮尔逊相关系数（无 numpy 依赖）"""
+    if len(series_a) < 15 or len(series_b) < 15 or len(series_a) != len(series_b):
+        return -1.0
+    n = len(series_a)
+    ma = sum(series_a) / n
+    mb = sum(series_b) / n
+    cov = sum((a - ma) * (b - mb) for a, b in zip(series_a, series_b))
+    va = sum((a - ma) ** 2 for a in series_a)
+    vb = sum((b - mb) ** 2 for b in series_b)
+    if va <= 1e-12 or vb <= 1e-12:
+        return -1.0
+    return cov / ((va ** 0.5) * (vb ** 0.5))
+
+
+def _infer_linked_etf_code(fund_code: str) -> str | None:
+    """
+    为 ETF 联接基金推断底层 ETF 代码：
+      1) 名称相似度候选
+      2) 历史净值收益相关性校验
+    """
+    cached = _linked_etf_infer_cache.get(fund_code)
+    if cached is not None:
+        return cached
+
+    fund_name = get_fund_name(fund_code)
+    if not fund_name:
+        _linked_etf_infer_cache[fund_code] = None
+        return None
+
+    # 仅对联接基金启用推断，避免误伤普通 ETF/指数基金
+    if "联接" not in str(fund_name):
+        _linked_etf_infer_cache[fund_code] = None
+        return None
+
+    normalized_name = _normalize_linked_name(fund_name)
+    core = _extract_etf_core(fund_name)
+    try:
+        fund_list = ak.fund_name_em()
+    except Exception as e:
+        logger.warning(f"[穿透推断] 读取基金列表失败 ({fund_code}): {e}")
+        _linked_etf_infer_cache[fund_code] = None
+        return None
+
+    if fund_list is None or fund_list.empty:
+        _linked_etf_infer_cache[fund_code] = None
+        return None
+
+    # 仅保留场内 ETF 候选
+    candidates = []
+    for _, row in fund_list.iterrows():
+        code = str(row.get("基金代码", "")).strip()
+        name = str(row.get("基金简称", "")).strip()
+        if not code or code == fund_code:
+            continue
+        if not _is_etf_trading_code(code):
+            continue
+        n = _normalize_linked_name(name)
+        if "ETF" not in n:
+            continue
+        score_name = SequenceMatcher(None, normalized_name, n).ratio()
+        score_core = SequenceMatcher(None, core, _extract_etf_core(name)).ratio() if core else 0.0
+        score = max(score_name * 0.7 + score_core * 0.3, score_core)
+        if score < 0.45:
+            continue
+        candidates.append((code, name, score))
+
+    if not candidates:
+        _linked_etf_infer_cache[fund_code] = None
+        return None
+
+    candidates.sort(key=lambda x: x[2], reverse=True)
+    top = candidates[:8]
+
+    # 若名称非常确定，直接采用
+    if top and top[0][2] >= 0.88:
+        best = top[0][0]
+        logger.info(f"[穿透推断] {fund_code} 名称高置信匹配 ETF {best} ({top[0][1]})")
+        _linked_etf_infer_cache[fund_code] = best
+        return best
+
+    # 相关性校验
+    base_hist = _sync_get_fund_history(fund_code, 180)
+    base_map = {h.get("date"): h.get("change_pct") for h in base_hist if h.get("date") and h.get("change_pct") is not None}
+    if len(base_map) < 20:
+        best = top[0][0]
+        _linked_etf_infer_cache[fund_code] = best
+        return best
+
+    best_code = None
+    best_corr = -1.0
+    for code, name, _ in top:
+        etf_hist = _sync_get_fund_history(code, 180)
+        etf_map = {h.get("date"): h.get("change_pct") for h in etf_hist if h.get("date") and h.get("change_pct") is not None}
+        common_dates = sorted(set(base_map.keys()) & set(etf_map.keys()))
+        if len(common_dates) < 20:
+            continue
+        a = [float(base_map[d]) for d in common_dates]
+        b = [float(etf_map[d]) for d in common_dates]
+        corr = _calc_return_corr(a, b)
+        if corr > best_corr:
+            best_corr = corr
+            best_code = code
+
+    if best_code and best_corr >= 0.75:
+        logger.info(f"[穿透推断] {fund_code} 相关性匹配 ETF {best_code} (corr={best_corr:.3f})")
+        _linked_etf_infer_cache[fund_code] = best_code
+        return best_code
+
+    # 兜底：取名称最相近候选
+    fallback = top[0][0]
+    logger.info(f"[穿透推断] {fund_code} 使用名称兜底 ETF {fallback}")
+    _linked_etf_infer_cache[fund_code] = fallback
+    return fallback
 
 
 def _last_trading_day_str() -> str:
@@ -532,6 +688,25 @@ def _sync_fetch_portfolio(fund_code: str, _depth: int = 0) -> dict:
             continue
 
     if df.empty:
+        inferred_etf = _infer_linked_etf_code(fund_code) if _depth < MAX_DEPTH else None
+        if inferred_etf:
+            logger.info(f"[穿透推断] {fund_code} 未取到持仓，尝试穿透 ETF {inferred_etf}")
+            etf = _sync_fetch_portfolio(inferred_etf, _depth=_depth + 1)
+            if etf.get("holdings"):
+                return {
+                    "fund_code": fund_code,
+                    "data_date": etf.get("data_date"),
+                    "total_weight": etf.get("total_weight", 0),
+                    "holdings": etf.get("holdings"),
+                    "penetrated_from": inferred_etf,
+                }
+            return {
+                "fund_code": fund_code,
+                "data_date": None,
+                "holdings": [],
+                "total_weight": 0,
+                "penetrated_from": inferred_etf,
+            }
         return {"fund_code": fund_code, "data_date": None, "holdings": []}
 
     latest_quarter = df["季度"].max()
@@ -564,8 +739,27 @@ def _sync_fetch_portfolio(fund_code: str, _depth: int = 0) -> dict:
                     "penetrated_from": top["code"],
                 }
 
-    return {"fund_code": fund_code, "data_date": data_date,
-            "total_weight": round(total_weight, 2), "holdings": holdings}
+    inferred_etf = _infer_linked_etf_code(fund_code) if _depth < MAX_DEPTH else None
+    if inferred_etf and inferred_etf != fund_code:
+        etf = _sync_fetch_portfolio(inferred_etf, _depth=_depth + 1)
+        if etf.get("holdings"):
+            return {
+                "fund_code": fund_code,
+                "data_date": etf.get("data_date") or data_date,
+                "total_weight": etf.get("total_weight", 0),
+                "holdings": etf.get("holdings"),
+                "penetrated_from": inferred_etf,
+            }
+
+    base_result = {
+        "fund_code": fund_code,
+        "data_date": data_date,
+        "total_weight": round(total_weight, 2),
+        "holdings": holdings,
+    }
+    if inferred_etf:
+        base_result["penetrated_from"] = inferred_etf
+    return base_result
 
 
 def get_fund_portfolio(fund_code: str, _depth: int = 0) -> dict:
@@ -574,11 +768,19 @@ def get_fund_portfolio(fund_code: str, _depth: int = 0) -> dict:
     策略：DB 缓存优先（7天有效期），失效则拉取 akshare 并更新 DB
     """
     cached = _db_get_portfolio(fund_code)
-    if cached and not _is_portfolio_stale(cached.get("updated_at", "")):
+    invalid_penetration = (
+        cached is not None
+        and cached.get("penetrated_from")
+        and not _is_etf_trading_code(cached.get("penetrated_from"))
+    )
+    if invalid_penetration:
+        logger.warning(f"持仓缓存中的穿透 ETF 无效，触发刷新 ({fund_code} -> {cached.get('penetrated_from')})")
+
+    if cached and not invalid_penetration and not _is_portfolio_stale(cached.get("updated_at", "")):
         return cached
 
     fresh = _sync_fetch_portfolio(fund_code, _depth=_depth)
-    if fresh.get("holdings"):
+    if fresh.get("holdings") or fresh.get("penetrated_from"):
         _db_save_portfolio(fund_code, fresh)
     elif cached:
         logger.warning(f"持仓拉取失败，使用旧缓存 ({fund_code})")
@@ -611,13 +813,19 @@ async def get_fund_portfolio_async(fund_code: str) -> dict:
     loop = asyncio.get_event_loop()
     cached = await loop.run_in_executor(_executor, _db_get_portfolio, fund_code)
     if cached:
-        if _is_portfolio_stale(cached.get("updated_at", "")):
+        invalid_penetration = (
+            cached.get("penetrated_from")
+            and not _is_etf_trading_code(cached.get("penetrated_from"))
+        )
+        if invalid_penetration:
+            asyncio.create_task(_bg_refresh_portfolio(fund_code))
+        elif _is_portfolio_stale(cached.get("updated_at", "")):
             asyncio.create_task(_bg_refresh_portfolio(fund_code))
         return cached
     # 首次拉取
     logger.info(f"[FIRST] 首次拉取持仓 ({fund_code})")
     result = await loop.run_in_executor(_executor, _sync_fetch_portfolio, fund_code)
-    if result.get("holdings"):
+    if result.get("holdings") or result.get("penetrated_from"):
         asyncio.create_task(asyncio.to_thread(_db_save_portfolio, fund_code, result))
     return result
 
