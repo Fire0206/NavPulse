@@ -921,6 +921,24 @@ global_cache.scheduler_running  # bool — 调度器状态
 - 本地验证：
    - `HoldingsView.js` 与 `style.css` 均无语法/诊断错误。
 
+### 2026-03-04：基金详情“实时走势断点”修复（收盘后/弱网场景）
+
+- 现象：收盘后基金详情页实时走势出现大量断点、短线段，曲线不连续。
+- 根因：
+   1. `fund.py` 中 `_backfill_intraday_gaps()` 已实现但未被调用，DB 分钟缺口长期不回补。
+   2. `/api/fund/{code}/intraday` 在 DB 无数据时未真正执行“分时兜底并落库”，仅返回空或稀疏点。
+   3. 调度快照为周期写入（非逐分钟），前端 `connectNulls=false` 下会将稀疏点渲染成断线。
+- 修复文件：
+   - `app/routers/fund.py`
+   - `PROJECT_SUMMARY.md`
+- 修复内容：
+   1. **启用缺口回补**：接口读取 DB 后，实际调用 `_backfill_intraday_gaps()` 回补缺失分钟。
+   2. **DB 空数据兜底**：DB 无数据时同步调用 `calculate_intraday_from_stocks()` 计算完整分时并 upsert 回写数据库。
+   3. **连续化输出**：新增 `_densify_intraday_points()`，按交易分钟前向填充返回数据，减少收盘后断点。
+   4. **时段控制**：交易时段只输出到当前分钟；非交易时段输出完整交易日分钟序列。
+- 本地验证：
+   - `fund.py` 语法/诊断通过，无错误。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。

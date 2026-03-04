@@ -179,6 +179,36 @@ def _build_trading_minutes() -> list[str]:
     return minutes
 
 
+def _densify_intraday_points(points: list[dict], up_to: str | None = None) -> list[dict]:
+    """
+    将稀疏分钟点位前向填充为连续分钟序列，减少图表断点。
+    - 仅在已有历史点之后前向填充，不会伪造开盘前未知数据。
+    - up_to: 仅输出该时刻及之前分钟（用于交易时段）。
+    """
+    if not points:
+        return []
+
+    minutes = _build_trading_minutes()
+    if up_to:
+        minutes = [m for m in minutes if m <= up_to]
+
+    point_map = {
+        p.get("time"): p.get("change")
+        for p in points
+        if p.get("time") and p.get("change") is not None
+    }
+
+    dense: list[dict] = []
+    last_val = None
+    for m in minutes:
+        if m in point_map:
+            last_val = point_map[m]
+        if last_val is not None:
+            dense.append({"time": m, "change": round(float(last_val), 4)})
+
+    return dense
+
+
 async def _backfill_intraday_gaps(
     fund_code: str, trade_date: str, existing_points: list, up_to: str | None = None
 ) -> int:
@@ -301,6 +331,8 @@ async def get_fund_intraday(fund_code: str):
 
     now       = dt.now(ZoneInfo("Asia/Shanghai"))
     today_str = now.strftime("%Y-%m-%d")
+    is_live   = is_market_open()
+    now_hm    = now.strftime("%H:%M")
 
     # ── 确定目标日期 ──
     target_date = today_str
@@ -329,6 +361,66 @@ async def get_fund_intraday(fund_code: str):
             sdb.close()
 
     db_points = await asyncio.to_thread(_load_points, target_date)
+
+    # ── 1.1 尝试回补 DB 缺口（此前函数存在但未调用，导致长期断点） ──
+    if db_points:
+        try:
+            filled = await asyncio.wait_for(
+                _backfill_intraday_gaps(
+                    fund_code,
+                    target_date,
+                    db_points,
+                    up_to=now_hm if is_live else None,
+                ),
+                timeout=8,
+            )
+            if filled > 0:
+                db_points = await asyncio.to_thread(_load_points, target_date)
+        except Exception as e:
+            logger.warning("[INTRADAY] %s 回补超时/失败: %s", fund_code, e)
+
+    # ── 1.2 DB 无数据时，直接计算完整分时曲线并落库（非交易时段也生效） ──
+    if not db_points:
+        try:
+            fresh = await asyncio.wait_for(calculate_intraday_from_stocks(fund_code), timeout=10)
+            fresh_points = fresh.get("points", []) if fresh else []
+            if fresh_points:
+                save_date = fresh.get("trade_date") or target_date
+
+                def _upsert_points(date: str, points: list[dict]):
+                    sdb = SessionLocal()
+                    try:
+                        for p in points:
+                            time_str = p.get("time")
+                            change = p.get("change")
+                            if not time_str or change is None:
+                                continue
+                            row = sdb.query(IntradayEstimate).filter(
+                                IntradayEstimate.fund_code == fund_code,
+                                IntradayEstimate.trade_date == date,
+                                IntradayEstimate.time == time_str,
+                            ).first()
+                            if row:
+                                row.estimate_change = change
+                            else:
+                                sdb.add(IntradayEstimate(
+                                    fund_code=fund_code,
+                                    trade_date=date,
+                                    time=time_str,
+                                    estimate_change=change,
+                                ))
+                        sdb.commit()
+                    except Exception:
+                        sdb.rollback()
+                        raise
+                    finally:
+                        sdb.close()
+
+                await asyncio.to_thread(_upsert_points, save_date, fresh_points)
+                target_date = save_date
+                db_points = await asyncio.to_thread(_load_points, target_date)
+        except Exception as e:
+            logger.warning("[INTRADAY] %s DB空数据兜底计算失败: %s", fund_code, e)
 
     # ── 2. 后台异步刷新分时数据（不阻塞返回） ──
     async def _bg_refresh_intraday():
@@ -369,15 +461,17 @@ async def get_fund_intraday(fund_code: str):
             logger.warning("[INTRADAY-BG] 后台分时计算失败: %s", e)
 
     # 交易时段或 DB 无数据时触发后台刷新
-    if is_market_open() or not db_points:
+    if is_live:
         asyncio.create_task(_bg_refresh_intraday())
 
-    # ── 3. 立即返回 DB 数据（可能为空，前端会显示空图或骨架屏） ──
+    # ── 3. 返回分钟级连续数据（减少断点） ──
+    points_out = _densify_intraday_points(db_points, up_to=now_hm if is_live else None)
+
     return {
         "fund_code":  fund_code,
         "trade_date": target_date,
-        "is_live":    is_market_open(),
-        "points":     db_points,
+        "is_live":    is_live,
+        "points":     points_out,
     }
 
 
