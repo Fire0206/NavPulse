@@ -71,16 +71,16 @@ const THEMES = [
   },
   {
     id: 'dark', name: 'dark', icon: 'bi-moon-stars-fill',
-    primary: '#F5F5F5', primaryDark: '#E5E5E5', primaryLight: '#1A1A1A', secondary: '#BFBFBF',
-    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)',
-    bg: '#F3F4F6',
-    cardBg: '#0A0A0A',
-    textMain: '#FFFFFF',
-    textSecondary: '#E5E5E5',
-    textLight: '#B3B3B3',
-    border: '#6B7280',
-    borderHover: '#9CA3AF',
-    shadowRgb: '0, 0, 0',
+    primary: '#CBD5E1', primaryDark: '#94A3B8', primaryLight: '#2C3340', secondary: '#9AA4B2',
+    gradient: 'linear-gradient(135deg, #303846 0%, #232A36 100%)',
+    bg: '#262D38',
+    cardBg: '#1D2430',
+    textMain: '#E6EBF2',
+    textSecondary: '#C7D0DB',
+    textLight: '#98A6B8',
+    border: '#3D4757',
+    borderHover: '#556176',
+    shadowRgb: '13, 18, 26',
   },
 ]
 
@@ -102,12 +102,12 @@ function applyTheme(theme) {
   root.style.setProperty('--surface-soft', `rgba(${theme.shadowRgb}, 0.10)`)
   root.style.setProperty('--surface-strong', `rgba(${theme.shadowRgb}, 0.16)`)
   root.style.setProperty('--focus-ring', `rgba(${theme.shadowRgb}, 0.24)`)
-  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(0, 0, 0, 0.62)' : 'rgba(255, 255, 255, 0.86)')
-  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(10, 10, 10, .94)' : 'rgba(255,255,255,.96)')
-  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.92)')
-  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(17,17,17,.08)')
+  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(17, 22, 30, 0.62)' : 'rgba(255, 255, 255, 0.86)')
+  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(29, 36, 48, .94)' : 'rgba(255,255,255,.96)')
+  root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,.92)')
+  root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(203,213,225,.18)' : 'rgba(17,17,17,.08)')
   root.style.setProperty('--bg-gradient', theme.id === 'dark'
-    ? '#F3F4F6'
+    ? '#262D38'
     : theme.id === 'light'
       ? '#FFFFFF'
       : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)

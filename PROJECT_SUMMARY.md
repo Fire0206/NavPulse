@@ -797,6 +797,20 @@ global_cache.scheduler_running  # bool — 调度器状态
    1. 恢复 `light.gradient` 为深色渐变，保证白字可读性。
    2. 新增 `swatchGradient`，主题选择圆圈仅使用 `swatchGradient`（light 为白色圆圈），不影响全局主题配色。
    3. 前端资源版本升级到 `app.js?v=20260305-14`。
+
+### 2026-03-05：dark 主题改为高级灰底并降低“过白”对比
+
+- 需求：`dark` 不使用纯黑底，同时修复深色下多处元素过白导致刺眼/可读性差的问题。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `README.md`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. `dark` 基础色改为高级灰体系（背景 `#262D38`、卡片 `#1D2430`），去除纯黑底。
+   2. 文本色从纯白降为柔和灰白（`textMain/textSecondary/textLight` 全量下调）。
+   3. 主色与边框改为冷灰色，提升边界可见性并降低刺眼感。
+   4. `overlay/nav/glass` 相关变量同步改为灰调深色。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
