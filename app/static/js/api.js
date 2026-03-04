@@ -161,14 +161,27 @@ export async function fetchStatus() {
 }
 // ── OCR 截图导入 API ─────────────────
 
-export async function ocrParseImage(file) {
+export async function ocrParseImage(file, timeoutMs = 95000) {
   const formData = new FormData()
   formData.append('file', file)
-  const r = checkAuth(await fetch('/api/portfolio/ocr-parse', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + getToken() },
-    body: formData,
-  }))
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let r
+  try {
+    r = checkAuth(await fetch('/api/portfolio/ocr-parse', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + getToken() },
+      body: formData,
+      signal: controller.signal,
+    }))
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error('OCR 请求超时，请重试（建议裁剪截图后重传）')
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
   if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'OCR 识别失败') }
   return r.json()
 }

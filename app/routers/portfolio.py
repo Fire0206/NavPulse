@@ -216,10 +216,16 @@ async def ocr_parse_screenshot(
 
         # OCR 是 CPU 密集型同步操作，必须放到线程池避免阻塞事件循环
         loop = asyncio.get_event_loop()
-        funds = await loop.run_in_executor(
-            None, parse_alipay_screenshot, image_bytes
+        funds = await asyncio.wait_for(
+            loop.run_in_executor(None, parse_alipay_screenshot, image_bytes),
+            timeout=90,
         )
         return {"success": True, "funds": funds, "count": len(funds)}
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="OCR 识别超时，请重试（建议截图裁剪后再上传）",
+        )
     except RuntimeError as e:
         # rapidocr 未安装
         raise HTTPException(status_code=500, detail=str(e))

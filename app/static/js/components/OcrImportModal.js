@@ -327,7 +327,7 @@ export default {
               <p style="margin-top:16px;color:var(--text-secondary);font-size:14px">
                 正在识别截图内容...
               </p>
-              <p style="color:var(--text-light);font-size:12px">首次识别需下载模型，请耐心等待</p>
+              <p style="color:var(--text-light);font-size:12px">首次识别可能较慢；超时请裁剪到持仓区域后重试</p>
             </div>
 
             <!-- ═══ Step 3: 预览结果 ═══ -->

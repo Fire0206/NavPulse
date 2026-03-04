@@ -11,6 +11,7 @@ OCR 识别支付宝持仓截图并解析基金数据
 import re
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from difflib import SequenceMatcher
 from io import BytesIO
 from typing import Any
@@ -23,6 +24,7 @@ _ocr_engine = None
 _fund_map_cache: dict[str, str] | None = None
 _fund_map_time: float = 0
 _FUND_MAP_TTL = 3600  # 1h
+_FUND_MAP_FETCH_TIMEOUT = 12
 
 
 def _get_engine():
@@ -61,8 +63,17 @@ def _get_fund_name_map() -> dict[str, str]:
         return _fund_map_cache
 
     try:
-        import akshare as ak
-        df = ak.fund_name_em()
+        def _fetch_df():
+            import akshare as ak
+            return ak.fund_name_em()
+
+        ex = ThreadPoolExecutor(max_workers=1)
+        fut = ex.submit(_fetch_df)
+        try:
+            df = fut.result(timeout=_FUND_MAP_FETCH_TIMEOUT)
+        finally:
+            ex.shutdown(wait=False, cancel_futures=True)
+
         mapping: dict[str, str] = {}
         for _, row in df.iterrows():
             name = str(row.get("基金简称", "")).strip()
@@ -73,6 +84,9 @@ def _get_fund_name_map() -> dict[str, str]:
         _fund_map_time = now
         logger.info(f"基金名称映射表已加载: {len(mapping)} 条")
         return mapping
+    except FuturesTimeoutError:
+        logger.warning("获取基金名称映射超时（%ss），回退到历史缓存", _FUND_MAP_FETCH_TIMEOUT)
+        return _fund_map_cache or {}
     except Exception as e:
         logger.error(f"获取基金名称映射失败: {e}")
         return _fund_map_cache or {}

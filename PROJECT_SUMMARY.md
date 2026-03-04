@@ -918,6 +918,23 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. `update_all_data()` 主链路增加涨跌榜刷新步骤（与行情/估值/持仓同周期执行）。
    3. `post_close_cache_refresh()` 与启动期 `_deferred_first_fetch()` 同步纳入涨跌榜刷新，保证不开页面也持续可用。
    4. 结果：基金涨跌榜、行情、基金估值、用户持仓均由后台定时任务统一驱动，页面只读缓存。
+
+### 2026-03-05：修复 OCR 识别长时间无响应
+
+- 现象：OCR 导入在部分情况下长时间停留“识别中”，用户无明确超时反馈。
+- 修改文件：
+   - `app/services/ocr_service.py`
+   - `app/routers/portfolio.py`
+   - `app/static/js/api.js`
+   - `app/static/js/components/OcrImportModal.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. OCR 路由增加 90 秒总超时（`asyncio.wait_for`），超时返回 504 明确错误。
+   2. 前端 OCR 上传请求增加超时控制（95 秒），防止浏览器侧无限等待。
+   3. 基金名称映射 `ak.fund_name_em()` 增加 12 秒超时保护，超时回退历史缓存。
+   4. 弹窗识别提示改为可操作文案（建议裁剪截图重试）。
+   5. 前端资源版本升级至 `app.js?v=20260305-21`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
