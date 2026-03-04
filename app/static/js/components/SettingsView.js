@@ -72,13 +72,13 @@ const THEMES = [
     id: 'dark', name: 'dark', icon: 'bi-moon-stars-fill',
     primary: '#F5F5F5', primaryDark: '#E5E5E5', primaryLight: '#1A1A1A', secondary: '#BFBFBF',
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)',
-    bg: '#000000',
+    bg: '#F3F4F6',
     cardBg: '#0A0A0A',
     textMain: '#FFFFFF',
     textSecondary: '#E5E5E5',
     textLight: '#B3B3B3',
-    border: '#2A2A2A',
-    borderHover: '#3A3A3A',
+    border: '#6B7280',
+    borderHover: '#9CA3AF',
     shadowRgb: '0, 0, 0',
   },
 ]
@@ -101,12 +101,12 @@ function applyTheme(theme) {
   root.style.setProperty('--surface-soft', `rgba(${theme.shadowRgb}, 0.10)`)
   root.style.setProperty('--surface-strong', `rgba(${theme.shadowRgb}, 0.16)`)
   root.style.setProperty('--focus-ring', `rgba(${theme.shadowRgb}, 0.24)`)
-  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(0, 0, 0, 0.78)' : 'rgba(255, 255, 255, 0.86)')
-  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(10, 10, 10, .96)' : 'rgba(255,255,255,.96)')
+  root.style.setProperty('--overlay-bg', theme.id === 'dark' ? 'rgba(0, 0, 0, 0.62)' : 'rgba(255, 255, 255, 0.86)')
+  root.style.setProperty('--nav-bg', theme.id === 'dark' ? 'rgba(10, 10, 10, .94)' : 'rgba(255,255,255,.96)')
   root.style.setProperty('--glass-bg', theme.id === 'dark' ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.92)')
   root.style.setProperty('--glass-border', theme.id === 'dark' ? 'rgba(255,255,255,.10)' : 'rgba(17,17,17,.08)')
   root.style.setProperty('--bg-gradient', theme.id === 'dark'
-    ? '#000000'
+    ? '#F3F4F6'
     : theme.id === 'light'
       ? '#FFFFFF'
       : `radial-gradient(1000px 460px at -10% -5%, rgba(${theme.shadowRgb}, .12), transparent 62%), radial-gradient(1000px 420px at 110% 0%, rgba(${theme.shadowRgb}, .08), transparent 58%), ${theme.bg}`)

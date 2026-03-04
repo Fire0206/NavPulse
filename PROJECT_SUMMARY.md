@@ -769,6 +769,21 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. 选中 `light` 主题时勾选图标改为深色，避免白底白勾不可见。
    3. `dark` 主题主色与文本体系改为黑底白字反相方案（primary/secondary/text/border 全量调整）。
    4. 前端资源版本升级到 `app.js?v=20260305-12`。
+
+### 2026-03-05：dark 背景改为 light 同款灰底 + 边框可见性增强
+
+- 需求：
+   1. `dark` 背景改为 `light` 中的灰色背景风格。
+   2. 修复暗色下白色/浅色边框不明显的问题。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. `dark.bg` 与 `dark` 的页面背景渐变统一改为灰底（`#F3F4F6`）。
+   2. `dark` 边框变量提亮（`border/borderHover`），提升按钮与卡片边界可见性。
+   3. `dark` 遮罩透明度微调，避免整体过暗。
+   4. 前端资源版本升级到 `app.js?v=20260305-13`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
