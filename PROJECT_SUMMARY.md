@@ -1017,6 +1017,20 @@ global_cache.scheduler_running  # bool — 调度器状态
    - `get_fund_portfolio('024195')` 返回 `holdings_count=15`。
    - `/api/fund/024195/intraday` 返回 `points=242`（09:30-15:00 完整分钟序列）。
 
+### 2026-03-04：持有页收益率视觉一致性调整
+
+- 需求：
+   1. 去掉总市值卡片中当日盈亏下方“当日收益率”文字，仅保留百分比值。
+   2. 持有页所有收益率需与收益金额一致，按正负显示红/绿。
+- 修改文件：
+   - `app/static/js/components/HoldingsView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. Hero 卡片中删除“当日收益率”标签文本，仅显示 `summary.dpr` 百分比。
+   2. 列表模式下 `holding_profit_rate`（`.hl-rate`）新增正负色 class 绑定：`cls(f.holding_profit_rate || 0)`。
+   3. 前端资源版本更新至 `app.js?v=20260304-6`，确保客户端加载最新 UI 逻辑。
+
 ### 2026-03-05：多策略基金估值引擎 — ETF场内实时 + QDII海外指数 + 自动分类
 
 - 需求：像"养基宝""支付宝"等平台一样，根据基金类型自动选择最优估值算法。ETF直接取场内实时价格，QDII用海外指数估算，T+2等特殊基金标注结算延迟。

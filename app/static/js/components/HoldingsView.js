@@ -235,10 +235,7 @@ export default {
               <div class="hero-stat">
                 <span class="stat-label">当日盈亏</span>
                 <span class="stat-value privacy" :class="summary.dp >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dp), 'profit') }}</span>
-                <span class="stat-sub">
-                  当日收益率
-                  <span class="stat-sub-value" :class="summary.dpr >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
-                </span>
+                <span class="stat-sub-value" :class="summary.dpr >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
               </div>
             </div>
           </div>
@@ -340,7 +337,7 @@ export default {
                   <div class="hl-col" :class="cls(f.holding_profit || 0)">
                     <div class="hl-label">持有收益</div>
                     <div class="hl-val privacy">{{ maskValue(sign(f.holding_profit || 0), 'profit') }}</div>
-                    <div class="hl-rate">{{ sign(f.holding_profit_rate || 0) }}%</div>
+                    <div class="hl-rate" :class="cls(f.holding_profit_rate || 0)">{{ sign(f.holding_profit_rate || 0) }}%</div>
                   </div>
                 </div>
                 <button class="btn-remove" @click.stop="delHolding(f.code)" title="删除">
