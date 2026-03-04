@@ -142,23 +142,23 @@ body {
 
 /* ══ Hero Card ══ */
 .hero-card {
-  background: var(--accent-gradient);
+  background: var(--card-bg);
   border-radius: var(--radius-lg);
   padding: 24px 20px 18px;
   margin: 0 auto 14px; max-width: 680px;
   position: relative; overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 12px 34px var(--surface-strong), 0 1px 3px rgba(7,15,38,.18);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card-hover);
 }
 .hero-card::before {
-  content: ''; position: absolute; top: -78px; right: -54px;
-  width: 210px; height: 210px; border-radius: 50%;
-  background: rgba(255,255,255,.09); pointer-events: none;
+  content: ''; position: absolute; top: -88px; right: -64px;
+  width: 220px; height: 220px; border-radius: 50%;
+  background: var(--surface-soft); pointer-events: none;
 }
 .hero-card::after {
-  content: ''; position: absolute; bottom: -96px; right: -86px;
-  width: 230px; height: 230px; border-radius: 50%;
-  background: rgba(5, 14, 40, .24); pointer-events: none;
+  content: ''; position: absolute; bottom: -98px; left: -96px;
+  width: 210px; height: 210px; border-radius: 50%;
+  background: rgba(148,163,184,.10); pointer-events: none;
 }
 .hero-row {
   display: flex; align-items: center; justify-content: space-between;
@@ -167,31 +167,44 @@ body {
 .hero-left { flex: 1; min-width: 0; }
 .hero-right {
   display: flex; flex-direction: column; align-items: stretch; gap: 8px;
-  min-width: 186px; flex-shrink: 0;
+  min-width: 196px; flex-shrink: 0;
 }
 .hero-label {
-  font-size: 11px; color: rgba(255,255,255,.6); font-weight: 400;
+  font-size: 11px; color: var(--text-light); font-weight: 500;
   letter-spacing: .4px; display: flex; align-items: center; gap: 6px;
   margin-bottom: 4px;
 }
 .hero-label i { cursor: pointer; font-size: 13px; opacity: .75; }
 .hero-label i:hover { opacity: 1; }
 .hero-value {
-  font-size: 36px; font-weight: 800; color: #fff;
+  font-size: 36px; font-weight: 800; color: var(--text-main);
   letter-spacing: -1.5px; font-variant-numeric: tabular-nums;
   margin-bottom: 0;
 }
 .hero-stat {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  background: rgba(255,255,255,.14); backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,.22);
-  padding: 10px 12px; border-radius: 14px;
-  color: #fff; white-space: nowrap;
+  background: var(--primary-light);
+  border: 1px solid var(--border);
+  padding: 10px 12px; border-radius: 12px;
+  color: var(--text-main); white-space: nowrap;
 }
-.hero-stat .stat-label { opacity: .86; font-size: 11px; font-weight: 600; letter-spacing: .3px; }
+.hero-stat .stat-label { opacity: .86; font-size: 10px; font-weight: 600; letter-spacing: .3px; color: var(--text-secondary); }
 .hero-stat .stat-value { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 20px; line-height: 1.08; letter-spacing: -.3px; }
 .hero-stat .stat-value.clr-up { color: var(--up); }
 .hero-stat .stat-value.clr-down { color: var(--down); }
+.hero-stat .stat-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero-stat .stat-sub-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ══ Action Bar ══ */
 .action-bar { display: flex; gap: 10px; margin: 0 auto 14px; max-width: 680px; }
@@ -657,10 +670,12 @@ body {
 @media (max-width: 375px) {
   .hero-value { font-size: 28px !important; }
   .hero-row { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .hero-right { width: 100%; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hero-right { width: 100%; min-width: 0; display: flex; }
   .hero-stat { padding: 8px 10px; }
   .hero-stat .stat-label { font-size: 10px; }
   .hero-stat .stat-value { font-size: 16px; }
+  .hero-stat .stat-sub { font-size: 11px; }
+  .hero-stat .stat-sub-value { font-size: 12px; }
   .hl-top { flex-wrap: wrap; }
   .holding-list-item .wi-info {
     min-width: 100%;
@@ -681,7 +696,7 @@ body {
 }
 @media (max-width: 640px) {
   .hero-row { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .hero-right { width: 100%; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hero-right { width: 100%; min-width: 0; display: flex; }
 }
 @media (min-width: 768px) {
   .funds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

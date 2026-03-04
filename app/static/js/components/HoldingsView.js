@@ -235,10 +235,10 @@ export default {
               <div class="hero-stat">
                 <span class="stat-label">当日盈亏</span>
                 <span class="stat-value privacy" :class="summary.dp >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dp), 'profit') }}</span>
-              </div>
-              <div class="hero-stat">
-                <span class="stat-label">当日收益率</span>
-                <span class="stat-value" :class="summary.dpr >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
+                <span class="stat-sub">
+                  当日收益率
+                  <span class="stat-sub-value" :class="summary.dpr >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
+                </span>
               </div>
             </div>
           </div>
