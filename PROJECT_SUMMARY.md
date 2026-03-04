@@ -872,6 +872,24 @@ global_cache.scheduler_running  # bool — 调度器状态
    1. 分布图 `yAxis.splitLine` 从近白色改为低透明灰线（`rgba(148,163,184,.18)`）。
    2. `xAxis.axisLine` 同步改为浅灰半透明，整体风格更柔和。
    3. 前端资源版本升级到 `app.js?v=20260305-17`。
+
+### 2026-03-05：修复行情“基金涨跌榜”长期加载中（缓存优先 + 后台刷新）
+
+- 现象：点击行情页时，基金涨跌榜可能长期显示“加载中...”。
+- 根因：涨跌榜链路缺少稳定兜底（无超时 + 无 SQLite 持久化回退），当上游接口阻塞时前端一直等待。
+- 修改文件：
+   - `app/services/market_service.py`
+   - `app/routers/market.py`
+   - `app/static/js/api.js`
+   - `app/static/js/components/MarketView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. 后端新增涨跌榜 SQLite 持久化读写（`CachedData.key = fund_rank`），重启后可秒开最近数据。
+   2. `get_fund_rank()` 支持 `force_refresh`，非强刷优先返回缓存；强刷失败自动回退内存/SQLite。
+   3. 前端 `fetchFundRank` 增加请求超时（12s）与 `force_refresh` 参数。
+   4. 行情页涨跌榜改为“本地缓存先显示 → 拉取后端最新缓存 → 后台强刷完成后再更新”。
+   5. 前端资源版本升级到 `app.js?v=20260305-19`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 

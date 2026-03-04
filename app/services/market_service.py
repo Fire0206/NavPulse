@@ -334,19 +334,105 @@ def _sync_get_fund_rank() -> dict[str, Any]:
         return {"date": "", "top": [], "bottom": [], "total_count": 0}
 
 
-async def get_fund_rank() -> dict[str, Any]:
+def _is_valid_fund_rank(data: dict[str, Any] | None) -> bool:
+    if not data:
+        return False
+    top = data.get("top") or []
+    bottom = data.get("bottom") or []
+    return bool(top or bottom)
+
+
+def _load_fund_rank_from_db() -> dict[str, Any] | None:
+    """从 SQLite 读取上次可用的基金涨跌榜缓存"""
+    try:
+        import json
+        from app.database import SessionLocal
+        from app.models import CachedData
+
+        db = SessionLocal()
+        try:
+            row = db.query(CachedData).filter(CachedData.key == "fund_rank").first()
+            if not row or not row.value:
+                return None
+            data = json.loads(row.value)
+            if _is_valid_fund_rank(data):
+                return data
+            return None
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"读取基金涨跌榜持久化缓存失败: {e}")
+        return None
+
+
+def _persist_fund_rank_to_db(data: dict[str, Any]):
+    """将基金涨跌榜写入 SQLite（用于重启后秒开）"""
+    if not _is_valid_fund_rank(data):
+        return
+    try:
+        import json
+        from datetime import datetime
+        from app.database import SessionLocal
+        from app.models import CachedData
+
+        db = SessionLocal()
+        try:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            row = db.query(CachedData).filter(CachedData.key == "fund_rank").first()
+            payload = json.dumps(data, ensure_ascii=False)
+            if row:
+                row.value = payload
+                row.updated_at = now
+            else:
+                db.add(CachedData(key="fund_rank", value=payload, updated_at=now))
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"持久化基金涨跌榜失败: {e}")
+
+
+async def _fetch_fund_rank_fresh(timeout_seconds: int = 12) -> dict[str, Any]:
+    loop = asyncio.get_event_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(_executor, _sync_get_fund_rank),
+            timeout=timeout_seconds,
+        )
+    except Exception as e:
+        logger.warning(f"实时拉取基金涨跌榜失败/超时: {e}")
+        return {"date": "", "top": [], "bottom": [], "total_count": 0}
+
+
+async def get_fund_rank(force_refresh: bool = False) -> dict[str, Any]:
     """
     异步获\u53d6\u57fa\u91d1\u6d28\u8dcc\u699c\uff08\u5e26\u7f13\u5b58\uff09
     """
     cache_key = "fund_rank"
-    if cache_key in _fund_rank_cache:
+    if not force_refresh and cache_key in _fund_rank_cache:
         return _fund_rank_cache[cache_key]
 
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(_executor, _sync_get_fund_rank)
-    if result["top"]:  # \u53ea\u7f13\u5b58\u6709\u6548\u6570\u636e
+    # 非强刷：优先返回 SQLite 中最近一次可用数据，保证页面秒开
+    if not force_refresh:
+        db_cached = _load_fund_rank_from_db()
+        if _is_valid_fund_rank(db_cached):
+            _fund_rank_cache[cache_key] = db_cached
+            return db_cached
+
+    result = await _fetch_fund_rank_fresh(timeout_seconds=12)
+    if _is_valid_fund_rank(result):
         _fund_rank_cache[cache_key] = result
-    return result
+        _persist_fund_rank_to_db(result)
+        return result
+
+    # 拉取失败兜底：内存缓存 → SQLite → 空结构
+    if cache_key in _fund_rank_cache:
+        return _fund_rank_cache[cache_key]
+    db_cached = _load_fund_rank_from_db()
+    if _is_valid_fund_rank(db_cached):
+        _fund_rank_cache[cache_key] = db_cached
+        return db_cached
+    return {"date": "", "top": [], "bottom": [], "total_count": 0}
 
 
 async def get_full_market_data() -> dict[str, Any]:

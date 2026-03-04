@@ -173,13 +173,13 @@ async def delete_sector(sector_name: str):
 
 
 @router.get("/fund-rank")
-async def get_fund_rank_api():
+async def get_fund_rank_api(force_refresh: bool = False):
     """
     获取基金涨跌榜（每日涨幅/跌幅 TOP50）
     数据缓存 300 秒，休市时显示上一个交易日的数据
     """
     try:
-        result = await get_fund_rank()
+        result = await get_fund_rank(force_refresh=force_refresh)
         return result
     except Exception as e:
         import traceback; traceback.print_exc()

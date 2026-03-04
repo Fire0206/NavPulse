@@ -135,8 +135,19 @@ export async function deleteTransaction(code, txId) {
 
 // ── 基金洨跌榜 API ───────────────────
 
-export async function fetchFundRank() {
-  const r = await fetch('/api/market/fund-rank')
+export async function fetchFundRank(forceRefresh = false, timeoutMs = 12000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const url = forceRefresh ? '/api/market/fund-rank?force_refresh=true' : '/api/market/fund-rank'
+  let r
+  try {
+    r = await fetch(url, { signal: controller.signal })
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('请求超时')
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
   if (!r.ok) throw new Error('获取失败')
   return r.json()
 }

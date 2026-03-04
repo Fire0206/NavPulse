@@ -5,6 +5,7 @@ import { sign, cls } from '../utils.js'
 import { usePullToRefresh } from './usePullToRefresh.js'
 
 const CACHE_KEY = 'market'
+const RANK_CACHE_KEY = 'fund_rank'
 
 export default {
   name: 'MarketView',
@@ -129,12 +130,32 @@ export default {
     }
 
     async function loadFundRank() {
-      if (fundRank.value) return
-      loadingRank.value = true
+      const localRank = readCache(RANK_CACHE_KEY)
+      if (localRank?.top?.length || localRank?.bottom?.length) {
+        fundRank.value = localRank
+      }
+
+      if (!fundRank.value) {
+        loadingRank.value = true
+      }
+
       try {
-        fundRank.value = await fetchFundRank()
+        const latest = await fetchFundRank(false)
+        if (latest?.top?.length || latest?.bottom?.length) {
+          fundRank.value = latest
+          writeCache(RANK_CACHE_KEY, latest)
+        }
+
+        fetchFundRank(true).then((fresh) => {
+          if (fresh?.top?.length || fresh?.bottom?.length) {
+            fundRank.value = fresh
+            writeCache(RANK_CACHE_KEY, fresh)
+          }
+        }).catch(() => {})
       } catch (e) {
-        // 静默失败
+        if (!fundRank.value) {
+          showToast('涨跌榜暂不可用，已展示最近缓存数据')
+        }
       } finally {
         loadingRank.value = false
       }
