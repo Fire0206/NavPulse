@@ -233,9 +233,9 @@ export default {
             </div>
             <div class="hero-right">
               <div class="hero-stat">
-                <span class="stat-label">当日盈亏</span>
+                <span class="stat-label">当日收益</span>
                 <span class="stat-value privacy" :class="summary.dp >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dp), 'profit') }}</span>
-                <span class="stat-sub-value" :class="summary.dpr >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
+                <span class="stat-sub-value" :class="summary.dp >= 0 ? 'clr-up' : 'clr-down'">{{ maskValue(sign(summary.dpr) + '%', 'rate') }}</span>
               </div>
             </div>
           </div>
@@ -302,7 +302,7 @@ export default {
                   </div>
                 </div>
                 <div class="fi-metric">
-                  <div class="fi-label">当日盈亏</div>
+                  <div class="fi-label">当日收益</div>
                   <div class="fi-val" :class="cls(f.daily_profit || 0)">{{ maskValue(sign(f.daily_profit || 0), 'profit') }}</div>
                 </div>
                 <div class="fi-metric">
