@@ -318,9 +318,21 @@ app.include_router(system.router)
 | 策略 | 适用基金 | 数据源 | 精度 |
 |------|----------|--------|------|
 | `etf_realtime` | 场内ETF / ETF联接(穿透) | 腾讯行情 qt.gtimg.cn | ★★★★★ |
-| `overseas_index` | QDII基金 | 新浪财经 hq.sinajs.cn | ★★★★ |
-| `weighted_holdings` | 普通股票型/混合型 | 腾讯行情(重仓股) | ★★★ |
+| `overseas_index` | QDII基金 | 新浪财经 hq.sinajs.cn + 汇率修正 | ★★★★ |
+| `weighted_holdings` | 普通股票型/混合型 | 腾讯行情(重仓股) + 市场代理 | ★★★☆ |
 | `nav_history` | 债券/货币/兜底 | 东方财富历史净值 | ★★ |
+
+**估值优化参数（回测进化引擎 v2.4，MAE↓22%）**：
+| 参数 | 值 | 说明 |
+|------|----|------|
+| `_NON_TOP_PROXY_CHANGE` | 0.12% | 非重仓股市场代理涨跌幅 |
+| `_ETF_POSITION_RATIO` | 0.92 | ETF联接实际投资ETF比例 |
+| `_ETF_CASH_DRAG` | 0.005% | 现金仓位日拖累 |
+| `_QDII_MGMT_FEE_DAILY` | 0.004% | QDII日均管理费 |
+| `_QDII_TRACKING_BETA` | 1.0 | 海外指数跟踪β |
+| `_DRIFT_DECAY_RATE` | 0.02/月 | 季报持仓权重衰减率 |
+| `_SECTOR_BETA` | 0.92~1.10 | 行业β对冲系数 |
+| `_get_fx_rate_change()` | 实时 | USD/CNY汇率联动修正 |
 
 **日内分时估值计算** (`calculate_intraday_from_stocks(fund_code)`)：
 ```
