@@ -64,8 +64,11 @@ cp .env.example .env
 ### 4. 启动
 
 ```bash
-# 开发模式
+# 开发模式（Linux/macOS）
 DEBUG=true python -m app.main
+
+# 开发模式（Windows PowerShell）
+$env:DEBUG="true"; python -m app.main
 
 # 或使用 uvicorn
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -157,6 +160,26 @@ NavPulse/
 - 下拉刷新 + 手动刷新按钮
 - 响应式卡片布局，`max-width: 760px` 居中
 - 禁用缩放，原生 App 般的操作体验
+
+## 🧭 开发规范（开源协作）
+
+推荐在本地启用统一检查工具：
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+```
+
+常用检查命令：
+
+```bash
+ruff check app scripts
+ruff format app scripts
+black app scripts
+isort app scripts
+```
+
+贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## ⚠️ 免责声明
 

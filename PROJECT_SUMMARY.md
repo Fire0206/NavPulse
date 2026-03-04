@@ -759,6 +759,25 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. 旧主题 ID 自动迁移：`light→day`、`dark→night`、`orange→day`、`teal→green`。
    3. 默认读取主题从 `day` 开始，兼容历史 localStorage。
 
+### 2026-03-05：开源与服务器部署前工程规范化
+
+- 目标：在不改动核心业务逻辑的前提下，统一工程规范，提升开源协作与服务器部署稳定性。
+- 新增文件：
+   - `.editorconfig`（统一缩进、换行、编码）
+   - `pyproject.toml`（`black/isort/ruff` 统一配置）
+   - `.pre-commit-config.yaml`（提交前自动检查与格式化）
+   - `requirements-dev.txt`（开发工具依赖）
+   - `.env.example`（环境变量模板）
+   - `CONTRIBUTING.md`（目录摆放、命名、提交与安全规范）
+- 修改文件：
+   - `README.md`（补充跨平台开发启动命令与开发规范流程）
+   - `PROJECT_SUMMARY.md`
+- 规范落地：
+   1. 统一代码风格与换行规则，避免多人协作的无效 diff。
+   2. 统一 lint/format 入口，便于 CI 与本地一致。
+   3. 明确目录职责与命名规范，降低后续维护成本。
+   4. 提供 `.env.example`，避免开源时误提交真实密钥配置。
+
 ### 2026-03-05：主题命名与风格调整（light / dark）
 
 - 需求：将“高级浅色/高级黑色（深色）”统一命名为 `light` / `dark`，并改为纯白风与纯黑风。

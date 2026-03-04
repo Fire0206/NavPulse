@@ -1,0 +1,24 @@
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = "\\.pyi?$"
+extend-exclude = "(venv|\.venv|build|dist)"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["venv", ".venv", "build", "dist"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["venv", ".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+line-ending = "lf"
