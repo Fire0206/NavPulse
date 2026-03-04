@@ -49,7 +49,7 @@ export default {
 
     // ── 持仓管理 ──
     const showTxPanel = ref(false)
-    const txForm = reactive({ type: 'buy', date: '', amount: '' })
+    const txForm = reactive({ type: 'buy', date: '', amount: '', shares: '' })
     const submittingTx = ref(false)
 
     /** 金额输入过滤：只允许数字和小数点，自动保留两位小数 */
@@ -63,6 +63,34 @@ export default {
       }
       txForm.amount = v
       e.target.value = v
+    }
+
+    function onTxSharesInput(e) {
+      let v = e.target.value
+      v = v.replace(/[^\d.]/g, '')
+      const parts = v.split('.')
+      if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('')
+      if (parts.length === 2 && parts[1].length > 4) {
+        v = parts[0] + '.' + parts[1].slice(0, 4)
+      }
+      txForm.shares = v
+      e.target.value = v
+    }
+
+    function setTxType(type) {
+      txForm.type = type
+      txForm.amount = ''
+      txForm.shares = ''
+    }
+
+    function applySellPreset(divisor) {
+      const totalShares = holdingStats.value?.shares || 0
+      if (totalShares <= 0) {
+        showToast('当前无可减仓份额')
+        return
+      }
+      const val = divisor === 1 ? totalShares : (totalShares / divisor)
+      txForm.shares = String(Number(val.toFixed(4)))
     }
 
     // ── 计算属性 ──
@@ -532,33 +560,54 @@ export default {
           String(today.getDate()).padStart(2, '0')
         txForm.type = 'buy'
         txForm.amount = ''
+        txForm.shares = ''
       }
     }
 
     async function submitTx() {
-      if (!txForm.amount || !txForm.date) {
-        showToast('请填写完整信息'); return
+      if (!txForm.date) {
+        showToast('请填写确认日期'); return
       }
-      const amount = parseFloat(txForm.amount)
-      if (isNaN(amount) || amount <= 0) {
-        showToast('金额必须大于 0'); return
+
+      let amount = 0
+      let shares = 0
+      const stats = holdingStats.value
+
+      if (txForm.type === 'buy') {
+        if (!txForm.amount) {
+          showToast('请填写买入金额'); return
+        }
+        amount = parseFloat(txForm.amount)
+        if (isNaN(amount) || amount <= 0) {
+          showToast('金额必须大于 0'); return
+        }
+      } else {
+        if (!txForm.shares) {
+          showToast('请填写减仓份额'); return
+        }
+        shares = parseFloat(txForm.shares)
+        if (isNaN(shares) || shares <= 0) {
+          showToast('减仓份额必须大于 0'); return
+        }
+        const totalShares = stats?.shares || 0
+        if (totalShares <= 0) {
+          showToast('当前无可减仓份额'); return
+        }
+        if (shares > totalShares) {
+          showToast('减仓份额不能超过当前持有份额 (' + totalShares.toFixed(2) + ')')
+          return
+        }
+        const nav = (detail.value?.last_nav || 0) > 0
+          ? (detail.value?.last_nav || 0)
+          : (totalShares > 0 ? (stats.marketValue || 0) / totalShares : 0)
+        amount = Number((Math.max(0, nav) * shares).toFixed(2))
       }
 
       // 防呆校验: 日期不能早于首次买入日期
-      const stats = holdingStats.value
       if (stats) {
         const firstDate = detail.value?.first_buy_date
         if (firstDate && txForm.date < firstDate) {
           showToast('操作日期不能早于首次买入日期 (' + firstDate + ')')
-          return
-        }
-      }
-
-      // 减仓校验: 卖出金额不能大于当前持仓市值
-      if (txForm.type === 'sell' && stats) {
-        const mv = stats.marketValue || 0
-        if (amount > mv) {
-          showToast('卖出金额不能超过当前持仓市值 (¥' + mv.toFixed(2) + ')')
           return
         }
       }
@@ -569,9 +618,11 @@ export default {
           type: txForm.type,
           date: txForm.date,
           amount: amount,
+          shares: txForm.type === 'sell' ? shares : 0,
         })
         showToast('✓ 交易已记录，持仓成本已更新')
         txForm.amount = ''
+        txForm.shares = ''
         // 使持仓数据失效，回到持仓列表时自动刷新
         store.holdingsData = null
         await loadDetail(fundCode.value)
@@ -611,7 +662,7 @@ export default {
       periodDays, historyData, loadingHistory, historyList, perfChartRef, periods,
       showTxPanel, txForm, submittingTx,
       open, switchTab, changePeriod, toggleTxPanel, submitTx, removeTx,
-      sign, cls, formatPrice, onTxAmountInput,
+      sign, cls, formatPrice, onTxAmountInput, onTxSharesInput, setTxType, applySellPreset,
     }
   },
 
@@ -698,23 +749,34 @@ export default {
         <div class="fd-tx-form">
           <div class="fd-tx-type">
             <button :class="['fd-type-btn', txForm.type === 'buy' ? 'active buy' : '']"
-                    @click="txForm.type='buy'">加仓</button>
+                    @click="setTxType('buy')">加仓</button>
             <button :class="['fd-type-btn', txForm.type === 'sell' ? 'active sell' : '']"
-                    @click="txForm.type='sell'">减仓</button>
+                    @click="setTxType('sell')">减仓</button>
           </div>
           <div class="fd-tx-row">
             <label>{{ txForm.type === 'buy' ? '加仓确认日期' : '减仓/赎回确认日期' }}</label>
             <input type="date" v-model="txForm.date">
           </div>
+          <div class="fd-tx-tip">默认选中当天日期；交易日 15:00 前通常按当日确认，15:00 后多为下一交易日确认。</div>
           <div class="fd-tx-row">
-            <label>{{ txForm.type === 'buy' ? '买入金额 (元)' : '卖出金额 (元)' }}</label>
-            <input type="text" inputmode="decimal"
+            <label>{{ txForm.type === 'buy' ? '买入金额 (元)' : '减仓份额' }}</label>
+            <input v-if="txForm.type === 'buy'" type="text" inputmode="decimal"
                    v-model="txForm.amount" @input="onTxAmountInput"
-                   :placeholder="txForm.type === 'buy' ? '请输入本次申购扣款金额' : '请输入实际到账金额 (或预估金额)'"
+                   placeholder="请输入本次申购扣款金额"
                    step="0.01">
+            <input v-else type="text" inputmode="decimal"
+                   v-model="txForm.shares" @input="onTxSharesInput"
+                   placeholder="请输入本次减仓份额"
+                   step="0.0001">
+          </div>
+          <div class="fd-tx-preset" v-if="txForm.type === 'sell'">
+            <button class="fd-preset-btn" @click="applySellPreset(1)">全部</button>
+            <button class="fd-preset-btn" @click="applySellPreset(2)">1/2</button>
+            <button class="fd-preset-btn" @click="applySellPreset(3)">1/3</button>
+            <button class="fd-preset-btn" @click="applySellPreset(4)">1/4</button>
           </div>
           <div class="fd-tx-row fd-tx-nav-row">
-            <span></span>
+            <span>{{ txForm.type === 'sell' && holdingStats ? ('可减仓份额：' + holdingStats.shares.toFixed(2)) : '' }}</span>
             <button class="fd-tx-submit" @click="submitTx" :disabled="submittingTx" style="min-width:80px">
               <span v-if="submittingTx"><span class="spinner-border spinner-border-sm me-1"></span>提交中</span>
               <span v-else>确认</span>

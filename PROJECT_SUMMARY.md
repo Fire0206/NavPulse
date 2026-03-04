@@ -1076,3 +1076,21 @@ global_cache.scheduler_running  # bool — 调度器状态
    - 486001(工银全球股票QDII) → qdii_sp500/overseas_index
    - 024195(永赢卫星通信ETF联接) → etf_linked/etf_linked
    - 320007(诺安成长混合) → mixed/weighted_holdings
+
+### 2026-03-05：交易面板交互优化（减仓按份额 + 日期提示）
+
+- 需求：
+   1. 加仓/减仓时增加日期说明，提示默认日期与 15:00 前后确认规则。
+   2. 减仓操作改为按“份额”输入，不再按金额输入。
+   3. 提供减仓快捷选项：全部、1/2、1/3、1/4。
+- 修改文件：
+   - `app/static/js/components/FundDetailModal.js`
+   - `app/static/css/style.css`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现内容：
+   1. 交易表单新增 `shares` 字段与份额输入过滤（支持最多 4 位小数）。
+   2. 减仓分支改为份额校验（>0 且不超过当前持有份额），提交时携带 `shares`。
+   3. 增加减仓快捷按钮（全部/1/2/1/3/1/4），一键填充份额。
+   4. 日期输入下方新增提示：默认当天，交易日 15:00 前通常按当日确认，15:00 后多为下一交易日。
+   5. 前端资源版本升级至 `app.js?v=20260305-8`，避免旧缓存导致样式/交互不生效。

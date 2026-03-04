@@ -494,6 +494,10 @@ body {
 .fd-tx-row label { min-width: 60px; font-size: 12px; color: var(--text-secondary); font-weight: 500; }
 .fd-tx-row input { flex: 1; border: 1.5px solid var(--border); border-radius: var(--radius-xs); padding: 6px 10px; font-size: 13px; outline: none; transition: border-color .2s; }
 .fd-tx-row input:focus { border-color: var(--primary); }
+.fd-tx-tip { margin-left: 68px; margin-top: -2px; font-size: 11px; color: var(--text-light); line-height: 1.4; }
+.fd-tx-preset { display: flex; gap: 6px; justify-content: flex-end; }
+.fd-preset-btn { border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary); border-radius: var(--radius-xs); padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .2s, color .2s; }
+.fd-preset-btn:hover { border-color: var(--primary); color: var(--primary); }
 .fd-tx-nav-row { justify-content: space-between; font-size: 12px; color: var(--text-light); padding-top: 4px; }
 .fd-tx-submit { background: var(--primary); color: #fff; border: none; border-radius: var(--radius-xs); padding: 6px 22px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, opacity .2s; }
 .fd-tx-submit:hover    { background: var(--primary-dark); }
