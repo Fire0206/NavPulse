@@ -58,7 +58,7 @@ const THEMES = [
   {
     id: 'light', name: 'light', icon: 'bi-sun-fill',
     primary: '#1F2937', primaryDark: '#111827', primaryLight: '#F3F4F6', secondary: '#9CA3AF',
-    gradient: 'linear-gradient(135deg, #1F2937 0%, #374151 100%)',
+    gradient: 'linear-gradient(135deg, #FFFFFF 0%, #F3F4F6 100%)',
     bg: '#FFFFFF',
     cardBg: '#FFFFFF',
     textMain: '#111111',
@@ -70,15 +70,15 @@ const THEMES = [
   },
   {
     id: 'dark', name: 'dark', icon: 'bi-moon-stars-fill',
-    primary: '#2A2A2A', primaryDark: '#111111', primaryLight: '#1A1A1A', secondary: '#666666',
+    primary: '#F5F5F5', primaryDark: '#E5E5E5', primaryLight: '#1A1A1A', secondary: '#BFBFBF',
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)',
     bg: '#000000',
     cardBg: '#0A0A0A',
-    textMain: '#F5F5F5',
-    textSecondary: '#CFCFCF',
-    textLight: '#9A9A9A',
-    border: '#1F1F1F',
-    borderHover: '#2A2A2A',
+    textMain: '#FFFFFF',
+    textSecondary: '#E5E5E5',
+    textLight: '#B3B3B3',
+    border: '#2A2A2A',
+    borderHover: '#3A3A3A',
     shadowRgb: '0, 0, 0',
   },
 ]
@@ -211,8 +211,8 @@ export default {
             <div class="theme-item" v-for="t in THEMES" :key="t.id"
                  :class="{ active: currentTheme === t.id }"
                  @click="selectTheme(t)">
-              <div class="theme-dot" :style="{ background: t.gradient }">
-                <i v-if="currentTheme === t.id" class="bi bi-check-lg"></i>
+              <div class="theme-dot" :style="{ background: t.gradient, border: t.id === 'light' ? '1px solid #E5E7EB' : 'none' }">
+                <i v-if="currentTheme === t.id" class="bi bi-check-lg" :style="{ color: t.id === 'light' ? '#111111' : '#FFFFFF' }"></i>
               </div>
               <span class="theme-name">{{ t.name }}</span>
             </div>

@@ -754,6 +754,21 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. `light` 主题调整为纯白背景 + 黑灰中性色文本体系。
    3. `dark` 主题调整为纯黑背景 + 灰白中性色文本体系。
    4. 主题应用逻辑中将 `light/dark` 的背景渐变分别固定为 `#FFFFFF` / `#000000`，移除原有彩色晕染。
+
+### 2026-03-05：主题圆圈与 dark 反相配色微调
+
+- 需求：
+   1. `light` 主题预览圆圈改为白色（原来看起来偏黑）。
+   2. `dark` 主题进一步调整为与 `light` 相反的黑底白字风格。
+- 修改文件：
+   - `app/static/js/components/SettingsView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. `light.gradient` 调整为白色渐变（`#FFFFFF -> #F3F4F6`），并为白色圆圈增加浅灰边框。
+   2. 选中 `light` 主题时勾选图标改为深色，避免白底白勾不可见。
+   3. `dark` 主题主色与文本体系改为黑底白字反相方案（primary/secondary/text/border 全量调整）。
+   4. 前端资源版本升级到 `app.js?v=20260305-12`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
