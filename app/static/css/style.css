@@ -205,6 +205,8 @@ body {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+.hero-stat .stat-sub-value.clr-up { color: var(--up); }
+.hero-stat .stat-sub-value.clr-down { color: var(--down); }
 
 /* ══ Action Bar ══ */
 .action-bar { display: flex; gap: 10px; margin: 0 auto 14px; max-width: 680px; }

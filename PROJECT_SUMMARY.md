@@ -1121,3 +1121,15 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. 网格卡片中的“当日盈亏”标签同步改为“当日收益”。
    3. Hero 下方当日收益率百分比的颜色 class 改为基于 `summary.dp`（当日收益金额）判定红绿，保证上下颜色一致。
    4. 前端资源版本升级至 `app.js?v=20260305-9`。
+
+### 2026-03-05：修复持有页 Hero 收益率仍显示黑色
+
+- 现象：总市值卡片右侧“当日收益”下方百分比在部分主题下仍显示黑色。
+- 根因：`.hero-stat .stat-sub-value` 缺少 `clr-up/clr-down` 颜色覆盖规则，继承了父级默认文本色。
+- 修改文件：
+   - `app/static/css/style.css`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 修复：
+   1. 新增 `.hero-stat .stat-sub-value.clr-up/.clr-down` 规则，确保收益率按红绿显示。
+   2. 前端资源版本升级至 `app.js?v=20260305-10`，避免缓存导致旧样式继续生效。
