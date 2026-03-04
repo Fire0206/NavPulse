@@ -167,13 +167,13 @@ export default {
         grid: { left: 35, right: 10, top: 20, bottom: 28 },
         xAxis: {
           type: 'category', data: labels,
-          axisLine: { lineStyle: { color: '#F0F0F3' } },
+          axisLine: { lineStyle: { color: 'rgba(148,163,184,.26)' } },
           axisLabel: { fontSize: 10, color: '#95A5A6' }
         },
         yAxis: {
           type: 'value',
           axisLine: { show: false }, axisTick: { show: false },
-          splitLine: { lineStyle: { color: '#F8F8FB' } },
+          splitLine: { lineStyle: { color: 'rgba(148,163,184,.18)', width: 1 } },
           axisLabel: { fontSize: 10, color: '#95A5A6' }
         },
         series: [{

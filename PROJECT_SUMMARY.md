@@ -824,6 +824,18 @@ global_cache.scheduler_running  # bool — 调度器状态
    2. dark 的背景、卡片、边框、文字色做成同一灰阶体系，减少“发白看不清”情况。
    3. `overlay/nav` 深度同步微调，保证顶部和浮层在 dark 下清晰。
    4. 前端资源版本升级到 `app.js?v=20260305-16`。
+
+### 2026-03-05：行情“涨跌分布”网格白线柔化
+
+- 需求：行情页基金涨跌分布图中的白色横线太突兀，希望去掉或变浅。
+- 修改文件：
+   - `app/static/js/components/MarketView.js`
+   - `app/templates/index.html`
+   - `PROJECT_SUMMARY.md`
+- 实现：
+   1. 分布图 `yAxis.splitLine` 从近白色改为低透明灰线（`rgba(148,163,184,.18)`）。
+   2. `xAxis.axisLine` 同步改为浅灰半透明，整体风格更柔和。
+   3. 前端资源版本升级到 `app.js?v=20260305-17`。
 13. **Swagger 文档仅 DEBUG 模式可见**：生产环境 `docs_url=None, redoc_url=None`
 14. **NoCacheJS 中间件仅 DEBUG 模式启用**：生产环境正常缓存 JS 文件
 
