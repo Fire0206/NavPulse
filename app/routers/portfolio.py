@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models import User
 from app.schemas import HoldingRequest
 from app.services.auth_service import get_current_user
@@ -22,6 +22,21 @@ from app.services.trading_calendar import is_market_open
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/portfolio", tags=["持仓管理"])
+
+
+def _schedule_portfolio_refresh(user_id: int):
+    async def _bg_portfolio_refresh():
+        db = SessionLocal()
+        try:
+            result = await get_portfolio_with_valuation_async(db, user_id)
+            global_cache.update_portfolio(user_id, result)
+            global_cache._update_timestamp()
+        except Exception as e:
+            logging.getLogger(__name__).warning("[BG-PORT] 持仓后台刷新失败: %s", e)
+        finally:
+            db.close()
+
+    asyncio.create_task(_bg_portfolio_refresh())
 
 
 @router.get("")
@@ -38,15 +53,7 @@ async def get_portfolio(
 
     if force_refresh:
         # 触发后台刷新，立即返回当前缓存
-        async def _bg_portfolio_refresh():
-            try:
-                result = await get_portfolio_with_valuation_async(db, current_user.id)
-                global_cache.update_portfolio(current_user.id, result)
-                global_cache._update_timestamp()
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning("[BG-PORT] 持仓后台刷新失败: %s", e)
-        asyncio.create_task(_bg_portfolio_refresh())
+        _schedule_portfolio_refresh(current_user.id)
         if cached and cached.get("funds"):
             return cached
 
@@ -81,9 +88,8 @@ async def add_portfolio_holding(
     创建 type="init" 的交易记录，_sync_holding 自动同步 Holding 表。
     """
     try:
-        from app.services.fund_service import _sync_get_fund_history, get_fund_name
+        from app.services.fund_service import _sync_get_fund_history, _db_get_history_latest_nav, get_fund_name
         from app.services.transaction_service import add_transaction
-        import asyncio
 
         if not holding.code or len(holding.code) != 6:
             raise HTTPException(status_code=400,
@@ -106,11 +112,16 @@ async def add_portfolio_holding(
                                 detail="投入本金必须大于0 (市值-收益)")
 
         # ── 获取最新净值 ──
-        history = await asyncio.to_thread(_sync_get_fund_history, holding.code, 30)
-        if not history:
-            raise HTTPException(status_code=400,
-                                detail="无法获取基金净值，请检查基金代码")
-        latest_nav = history[-1]["nav"]
+        cached_valuation = global_cache.get_fund_valuation(holding.code) or {}
+        latest_nav = cached_valuation.get("last_nav") or 0
+        if latest_nav <= 0:
+            latest_nav = await asyncio.to_thread(_db_get_history_latest_nav, holding.code)
+        if latest_nav <= 0:
+            history = await asyncio.to_thread(_sync_get_fund_history, holding.code, 30)
+            if not history:
+                raise HTTPException(status_code=400,
+                                    detail="无法获取基金净值，请检查基金代码")
+            latest_nav = history[-1]["nav"]
         if latest_nav <= 0:
             raise HTTPException(status_code=400,
                                 detail="基金净值异常")
@@ -136,6 +147,7 @@ async def add_portfolio_holding(
 
         if result.get("success"):
             global_cache.clear_portfolio_cache(current_user.id)
+            _schedule_portfolio_refresh(current_user.id)
             # 异步获取基金名称（供前端乐观更新使用）
             try:
                 fund_name = await asyncio.to_thread(get_fund_name, holding.code)
@@ -179,6 +191,7 @@ async def delete_portfolio_holding(
         result = remove_holding(db, current_user.id, fund_code)
         if result.get("success"):
             global_cache.clear_portfolio_cache(current_user.id)
+            _schedule_portfolio_refresh(current_user.id)
             return {"success": True, "message": "持仓已删除",
                     "data": {"code": fund_code}}
         raise HTTPException(status_code=404, detail="未找到该持仓")
@@ -212,12 +225,12 @@ async def ocr_parse_screenshot(
 
     try:
         import asyncio
-        from app.services.ocr_service import parse_alipay_screenshot
+        from app.services.ocr_service import parse_alipay_screenshot, get_ocr_executor
 
         # OCR 是 CPU 密集型同步操作，必须放到线程池避免阻塞事件循环
         loop = asyncio.get_event_loop()
         funds = await asyncio.wait_for(
-            loop.run_in_executor(None, parse_alipay_screenshot, image_bytes),
+            loop.run_in_executor(get_ocr_executor(), parse_alipay_screenshot, image_bytes),
             timeout=90,
         )
         return {"success": True, "funds": funds, "count": len(funds)}
@@ -320,6 +333,7 @@ async def batch_import_holdings(
     # 清除持仓缓存以便重新加载
     if success_count > 0:
         global_cache.clear_portfolio_cache(current_user.id)
+        _schedule_portfolio_refresh(current_user.id)
 
     return {
         "success": True,

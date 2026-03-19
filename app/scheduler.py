@@ -17,6 +17,7 @@ from app.services.market_service import (
     get_stock_distribution,
     get_sector_list,
     get_fund_rank,
+    clear_market_cache,
 )
 from app.services.valuation_service import calculate_fund_estimate
 from app.services.portfolio_service import get_portfolio_with_valuation_async
@@ -40,6 +41,7 @@ async def _update_market_data_impl():
     """行情数据实际爬取逻辑（无交易时段判断，供多处调用）"""
     logger.info("[INFO] 开始更新行情数据...")
     try:
+        clear_market_cache()
         indices, distribution = await asyncio.gather(
             get_market_indices(),
             get_stock_distribution(),
@@ -325,11 +327,11 @@ def init_scheduler() -> AsyncIOScheduler:
         }
     )
     
-    # 添加定时任务：每 3 分钟执行一次，仅在交易时间 (09:00-15:30)
+    # 添加定时任务：每 2 分钟执行一次，仅在交易时间
     scheduler.add_job(
         update_all_data,
         CronTrigger(
-            minute="*/3",           # 每 3 分钟
+            minute="*/2",           # 每 2 分钟
             hour="9-15",            # 9点到15点
             day_of_week="mon-fri",  # 周一到周五
         ),
@@ -410,17 +412,17 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
-    # ── 15:05-21:55 每 5 分钟轮询一次官方净值（停盘后持续检查基金是否发布当日净值）
+    # ── 15:05-23:59 每 2 分钟轮询一次官方净值（缩短盘后滞后）
     # 注：22:00 由 official_nav_final 负责最终尝试；15:05 由 save_estimate_navs 单独处理
     scheduler.add_job(
         refresh_official_nav_and_cache_sync,
         CronTrigger(
-            hour="15-21",
-            minute="*/5",
+            hour="15-23",
+            minute="*/2",
             day_of_week="mon-fri",
         ),
         id="official_nav_polling",
-        name="停盘后每5分钟轮询官方净值",
+        name="停盘后每2分钟轮询官方净值",
         replace_existing=True,
     )
 

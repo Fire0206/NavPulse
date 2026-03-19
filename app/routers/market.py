@@ -18,7 +18,9 @@ from app.services.market_service import (
     get_sector_list,
     get_full_market_data,
     get_fund_rank,
+    clear_market_cache,
 )
+from app.services.trading_calendar import current_display_trade_date, in_live_display_window
 from app.state import global_cache
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,36 @@ router = APIRouter(prefix="/api/market", tags=["行情数据"])
 _bg_refreshing = False
 
 
+def _is_current_market_snapshot() -> bool:
+    last_update = (global_cache.last_update_time or "")[:10]
+    return bool(last_update) and last_update == current_display_trade_date()
+
+
+def _empty_market_snapshot() -> dict:
+    return {
+        "indices": [],
+        "distribution": {
+            "up_count": 0,
+            "down_count": 0,
+            "flat_count": 0,
+            "total": 0,
+            "distribution": {
+                "down_5": 0,
+                "down_3_5": 0,
+                "down_1_3": 0,
+                "down_0_1": 0,
+                "flat": 0,
+                "up_0_1": 0,
+                "up_1_3": 0,
+                "up_3_5": 0,
+                "up_5": 0,
+            },
+        },
+        "sectors": [],
+        "last_update_time": global_cache.last_update_time,
+    }
+
+
 async def _background_market_refresh():
     """后台静默刷新行情数据（不阻塞任何 API 响应）"""
     global _bg_refreshing
@@ -35,6 +67,7 @@ async def _background_market_refresh():
         return  # 已有任务在跑，跳过
     _bg_refreshing = True
     try:
+        clear_market_cache()
         data = await get_full_market_data()
         global_cache.update_market_data(
             indices=data.get("indices"),
@@ -59,44 +92,49 @@ async def get_market_data(force_refresh: bool = False):
     """
     cached = global_cache.get_market_data()
     has_valid = cached["indices"] and any(x.get("price") for x in cached["indices"])
+    live_window = in_live_display_window()
+    current_snapshot = _is_current_market_snapshot()
 
     if force_refresh:
         # 用户手动刷新 → 后台异步爬取，立即返回当前数据
         asyncio.create_task(_background_market_refresh())
-        return cached
+        return cached if (not live_window or current_snapshot) else _empty_market_snapshot()
 
-    if has_valid:
+    if has_valid and ((not live_window) or current_snapshot):
         return cached
 
     # 完全无缓存（首次启动、调度器尚未执行） → 触发后台刷新，返回空结构
     asyncio.create_task(_background_market_refresh())
-    return cached
+    return cached if not live_window else _empty_market_snapshot()
 
 
 @router.get("/indices")
 async def get_indices():
     """获取大盘指数（优先缓存，缓存为空触发后台刷新）"""
-    if global_cache.market_indices and any(x.get("price") for x in global_cache.market_indices):
+    if global_cache.market_indices and any(x.get("price") for x in global_cache.market_indices) and (not in_live_display_window() or _is_current_market_snapshot()):
         return global_cache.market_indices
     # 缓存为空 → 后台刷新，返回空列表
     asyncio.create_task(_background_market_refresh())
-    return global_cache.market_indices or []
+    return global_cache.market_indices if not in_live_display_window() else []
 
 
 @router.get("/distribution")
 async def get_distribution():
     """获取涨跌分布（优先缓存，缓存为空触发后台刷新）"""
-    if global_cache.stock_distribution and global_cache.stock_distribution.get("total", 0) > 0:
+    if global_cache.stock_distribution and global_cache.stock_distribution.get("total", 0) > 0 and (not in_live_display_window() or _is_current_market_snapshot()):
         return global_cache.stock_distribution
     # 缓存为空 → 后台刷新，返回空结构
     asyncio.create_task(_background_market_refresh())
-    return global_cache.stock_distribution or {}
+    return global_cache.stock_distribution if not in_live_display_window() else _empty_market_snapshot()["distribution"]
 
 
 @router.get("/sectors")
 async def get_sectors():
     """获取板块列表（始终从 DB 读取，含实时估值加权涨跌幅）"""
     try:
+        if in_live_display_window() and not _is_current_market_snapshot():
+            asyncio.create_task(_background_market_refresh())
+            return []
         return await get_sector_list()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

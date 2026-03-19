@@ -25,6 +25,11 @@ _fund_map_cache: dict[str, str] | None = None
 _fund_map_time: float = 0
 _FUND_MAP_TTL = 3600  # 1h
 _FUND_MAP_FETCH_TIMEOUT = 12
+_ocr_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="navpulse_ocr")
+
+
+def get_ocr_executor() -> ThreadPoolExecutor:
+    return _ocr_executor
 
 
 def _get_engine():
@@ -46,6 +51,7 @@ def warmup_ocr_engine():
     """应用启动时预热 OCR 引擎，避免首次请求时耗时初始化"""
     try:
         _get_engine()
+        _get_fund_name_map()
         logger.info("OCR 引擎预热完成")
     except Exception as e:
         logger.warning(f"OCR 引擎预热失败（将在首次使用时重试）: {e}")

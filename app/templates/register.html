@@ -142,10 +142,16 @@ async function doRegister(e){
   btn.disabled=true;btn.textContent='注册中…';
   try{
     const r=await fetch('/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
-    const d=await r.json();
+    const raw=await r.text();
+    let d={};
+    try{d=raw?JSON.parse(raw):{}}catch{d={detail:raw||'服务器返回了无法解析的响应'}}
     if(!r.ok) throw new Error(d.detail||'注册失败');
-    okEl.textContent='注册成功！正在跳转到登录页…';okEl.classList.remove('d-none');
-    setTimeout(()=>location.href='/login',1500);
+    if(d.access_token){
+      localStorage.setItem('token',d.access_token);
+      localStorage.setItem('username',d.username||username);
+    }
+    okEl.textContent='注册成功！正在进入首页…';okEl.classList.remove('d-none');
+    setTimeout(()=>location.href=(d.redirect_to||'/'),700);
   }catch(err){
     errEl.textContent=err.message;errEl.classList.remove('d-none');
   }finally{

@@ -2,9 +2,11 @@
 交易日历服务 — 判断当前是否为 A 股交易时间
 
 功能:
-  - is_trading_day(dt)   是否交易日（排除周末 + 法定假日）
-  - is_trading_time(dt)  是否在交易时段 (09:15-15:05)
-  - is_market_open()     综合判断：当前是否应该爬取数据
+    - is_trading_day(dt)        是否交易日（排除周末 + 法定假日）
+    - is_trading_time(dt)       是否在交易时段 (09:15-15:05)
+    - is_market_open()          综合判断：当前是否应该爬取数据
+    - current_display_trade_date() 当前页面应展示的交易日
+    - in_live_display_window()  是否处于“当天 09:30-24:00 必须展示当日数据”窗口
 """
 from __future__ import annotations
 
@@ -67,6 +69,19 @@ def now_shanghai() -> datetime:
     return datetime.now(_TZ)
 
 
+def previous_trading_day(dt: datetime | date | None = None) -> date:
+    """返回给定日期之前最近一个交易日。"""
+    if dt is None:
+        dt = now_shanghai()
+    current = dt.date() if isinstance(dt, datetime) else dt
+    from datetime import timedelta
+
+    current -= timedelta(days=1)
+    while not is_trading_day(current):
+        current -= timedelta(days=1)
+    return current
+
+
 def is_trading_day(dt: datetime | date | None = None) -> bool:
     """
     判断是否为交易日（非周末、非法定假日）
@@ -113,6 +128,40 @@ def is_market_open() -> bool:
     等同于 is_trading_time() 的别名，语义更清晰
     """
     return is_trading_time()
+
+
+def in_live_display_window(dt: datetime | None = None) -> bool:
+    """
+    是否处于“当天 09:30-24:00 必须展示当日数据”的窗口。
+    该窗口内若实时接口失败，宁可返回空/0，也不能继续展示昨日数据。
+    """
+    if dt is None:
+        dt = now_shanghai()
+    if not is_trading_day(dt):
+        return False
+
+    from datetime import time as _time
+    return dt.time() >= _time(9, 30)
+
+
+def current_display_trade_date(dt: datetime | None = None) -> str:
+    """
+    返回当前页面应该展示的交易日：
+    - 交易日 09:30-24:00：展示当天
+    - 其余时段：展示最近一个已完成交易日
+    """
+    if dt is None:
+        dt = now_shanghai()
+
+    if in_live_display_window(dt):
+        return dt.strftime("%Y-%m-%d")
+
+    if is_trading_day(dt):
+        from datetime import time as _time
+        if dt.time() < _time(9, 30):
+            return previous_trading_day(dt).strftime("%Y-%m-%d")
+
+    return previous_trading_day(dt).strftime("%Y-%m-%d")
 
 
 def get_trading_status() -> dict:

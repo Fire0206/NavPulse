@@ -1206,6 +1206,27 @@ def get_official_nav_progress(target_date: str | None = None) -> dict[str, Any]:
         db.close()
 
 
+def get_official_nav_updated_codes(target_date: str | None = None) -> set[str]:
+    """返回指定交易日已写入官方净值的基金代码集合。"""
+    from app.models import FundNavHistory
+    from app.services.trading_calendar import current_display_trade_date
+
+    day = target_date or current_display_trade_date()
+    db = SessionLocal()
+    try:
+        rows = db.query(FundNavHistory.fund_code).filter(
+            FundNavHistory.date == day,
+            FundNavHistory.is_estimate == 0,
+            FundNavHistory.nav > 0,
+        ).all()
+        return {r.fund_code for r in rows}
+    except Exception as e:
+        logger.warning(f"读取官方净值代码集合失败: {e}")
+        return set()
+    finally:
+        db.close()
+
+
 # 
 #  向后兼容：保留旧函数名供内部调用
 # 

@@ -1,7 +1,7 @@
 import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import { store, showToast, readCache, writeCache, refreshStatus, maskValue } from '../store.js'
 import { fetchPortfolio, deleteHolding } from '../api.js'
-import { sign, cls, formatPrice } from '../utils.js'
+import { sign, cls, formatPrice, formatAmount } from '../utils.js'
 import { usePullToRefresh } from './usePullToRefresh.js'
 
 const CACHE_KEY = 'holdings'
@@ -169,7 +169,7 @@ export default {
       loadHoldings, refresh, delHolding, toggleBlur, setSortOrder, toggleDisplayMode,
       openAddModal, openDetailModal, openOcrModal,
       viewRef, ptrState,
-      sign, cls, formatPrice, maskValue, typeTagClass,
+      sign, cls, formatPrice, formatAmount, maskValue, typeTagClass,
     }
   },
   template: `
@@ -228,7 +228,7 @@ export default {
                 <span class="silent-spinner" v-if="silentRefreshing" title="数据校准中"></span>
               </div>
               <div class="hero-value privacy">
-                {{ maskValue(formatPrice(summary.mv), 'amount') }}
+                {{ maskValue(formatAmount(summary.mv), 'amount') }}
               </div>
             </div>
             <div class="hero-right">
@@ -288,7 +288,11 @@ export default {
               <div class="fi-header">
                 <div>
                   <div class="fi-name">{{ f.fund_name || f.name || f.code }}</div>
-                  <div class="fi-code">{{ f.code }}<span :class="typeTagClass(f)" v-if="f.fund_type_label">{{ f.fund_type_label }}</span></div>
+                  <div class="fi-code" style="color:var(--text-main);font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span class="privacy">持仓金额 {{ maskValue(formatAmount(f.market_value || 0), 'amount') }}</span>
+                    <span class="badge" style="background:#DBEAFE;color:#1D4ED8;font-weight:700" v-if="f.official_nav_updated">已更新</span>
+                    <span :class="typeTagClass(f)" v-if="f.fund_type_label">{{ f.fund_type_label }}</span>
+                  </div>
                 </div>
                 <div class="fi-change" :class="cls(f.estimate_change || 0)">
                   {{ sign(f.estimate_change || 0) }}%
@@ -323,7 +327,11 @@ export default {
               <div class="hl-top">
                 <div class="wi-info">
                   <div class="wi-name">{{ f.fund_name || f.name || f.code }}</div>
-                  <div class="wi-code">{{ f.code }}<span :class="typeTagClass(f)" v-if="f.fund_type_label" style="margin-left:4px">{{ f.fund_type_label }}</span></div>
+                  <div class="wi-code" style="color:var(--text-main);font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span class="privacy">持仓金额 {{ maskValue(formatAmount(f.market_value || 0), 'amount') }}</span>
+                    <span class="badge" style="background:#DBEAFE;color:#1D4ED8;font-weight:700" v-if="f.official_nav_updated">已更新</span>
+                    <span :class="typeTagClass(f)" v-if="f.fund_type_label">{{ f.fund_type_label }}</span>
+                  </div>
                 </div>
                 <div class="hl-values">
                   <div class="hl-col" :class="cls(f.estimate_change || 0)">

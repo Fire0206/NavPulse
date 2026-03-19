@@ -17,6 +17,8 @@ from datetime import datetime
 import aiohttp
 from cachetools import TTLCache
 
+from app.services.trading_calendar import current_display_trade_date, in_live_display_window, now_shanghai
+
 logger = logging.getLogger("navpulse.valuation")
 
 # ── 全局缓存 ──────────────────────────────────────────────
@@ -84,9 +86,9 @@ def _build_qt_query(stock_codes: list[str]) -> tuple[list[str], dict[str, str]]:
         qt_code = ""
 
         if len(code) == 6:
-            if code.startswith("6"):
+            if code.startswith(("5", "6")):
                 qt_code = f"sh{code}"
-            elif code.startswith(("0", "3")):
+            elif code.startswith(("0", "1", "3")):
                 qt_code = f"sz{code}"
             elif code.startswith(("4", "8")):
                 qt_code = f"bj{code}"
@@ -179,6 +181,112 @@ async def _get_realtime_prices_async(stock_codes: list[str]) -> dict[str, dict]:
 # ══════════════════════════════════════════════════════════
 
 _fx_cache: TTLCache = TTLCache(maxsize=10, ttl=300)  # 5分钟缓存
+
+_STRICT_SAME_DAY_CODES = {"008987", "161226", "006479"}
+_SPECIAL_ASSET_PROXY_MAP: dict[str, dict] = {
+    "008987": {
+        "description": "黄金资产",
+        "proxy_codes": ["518880", "159934", "159937", "518800"],
+        "method": "gold_proxy",
+    },
+    "161226": {
+        "description": "商品期货",
+        "proxy_codes": ["161226", "159980", "159981"],
+        "method": "commodity_proxy",
+    },
+}
+
+
+def _build_zero_change_result(
+    fund_code: str,
+    fund_name: str,
+    last_nav: float,
+    fund_type: str,
+    fund_type_label: str,
+    method: str,
+    description: str,
+) -> dict:
+    return {
+        "fund_code": fund_code,
+        "fund_name": fund_name,
+        "data_date": current_display_trade_date(),
+        "total_weight": 0,
+        "estimate_change": 0.0,
+        "holdings": [],
+        "coverage": 0,
+        "update_time": datetime.now().strftime("%H:%M:%S"),
+        "cached": False,
+        "last_nav": last_nav,
+        "is_closed": True,
+        "estimation_method": method,
+        "fund_type": fund_type,
+        "fund_type_label": fund_type_label,
+        "realtime_fallback_zero": True,
+        "special_asset_label": description,
+    }
+
+
+async def _estimate_special_asset_fund(
+    fund_code: str,
+    fund_name: str,
+    portfolio: dict,
+    history: list,
+    fund_type: str = "",
+    fund_type_label: str = "",
+) -> dict | None:
+    config = _SPECIAL_ASSET_PROXY_MAP.get(fund_code)
+    if not config:
+        return None
+
+    last_nav = history[-1].get("nav", 0) if history else 0
+    try:
+        prices = await _get_realtime_prices_async(config["proxy_codes"])
+        for proxy_code in config["proxy_codes"]:
+            info = prices.get(proxy_code)
+            if info and info.get("price") is not None and info.get("change_pct") is not None:
+                return {
+                    "fund_code": fund_code,
+                    "fund_name": fund_name,
+                    "data_date": current_display_trade_date(),
+                    "total_weight": portfolio.get("total_weight", 0.0),
+                    "estimate_change": round(float(info.get("change_pct") or 0.0), 2),
+                    "holdings": [],
+                    "coverage": 100,
+                    "update_time": datetime.now().strftime("%H:%M:%S"),
+                    "cached": False,
+                    "last_nav": last_nav,
+                    "estimation_method": config["method"],
+                    "fund_type": fund_type,
+                    "fund_type_label": fund_type_label or config["description"],
+                    "proxy_code": proxy_code,
+                    "proxy_name": info.get("name", proxy_code),
+                    "proxy_price": info.get("price", 0),
+                    "special_asset_label": config["description"],
+                }
+    except Exception as e:
+        logger.warning("特殊资产实时行情失败 (%s): %s", fund_code, e)
+
+    return _build_zero_change_result(
+        fund_code=fund_code,
+        fund_name=fund_name,
+        last_nav=last_nav,
+        fund_type=fund_type,
+        fund_type_label=fund_type_label or config["description"],
+        method=config["method"],
+        description=config["description"],
+    )
+
+
+def _should_zero_stale_same_day(fund_code: str, result: dict) -> bool:
+    if fund_code not in _STRICT_SAME_DAY_CODES:
+        return False
+    today_str = now_shanghai().strftime("%Y-%m-%d")
+    if current_display_trade_date() != today_str:
+        return False
+    if result.get("realtime_fallback_zero"):
+        return False
+    data_date = str(result.get("data_date") or "")[:10]
+    return result.get("estimation_method") in {"history", "nav_history"} and data_date != today_str
 
 
 async def _get_fx_rate_change() -> dict | None:
@@ -391,6 +499,17 @@ async def calculate_fund_estimate(fund_code: str) -> dict:
     # ── 3. 交易时段 → 按基金类型路由到不同估值引擎 ──
     result = await _fetch_fund_estimate(fund_code, classification)
 
+    if _should_zero_stale_same_day(fund_code, result):
+        result = _build_zero_change_result(
+            fund_code=fund_code,
+            fund_name=result.get("fund_name", fund_code),
+            last_nav=result.get("last_nav", 0),
+            fund_type=result.get("fund_type", classification.fund_type),
+            fund_type_label=result.get("fund_type_label", classification.description),
+            method="strict_same_day_zero",
+            description="当日实时数据暂不可用，已强制归零",
+        )
+
     # ── 4. 仅缓存成功结果 ──
     if "error" not in result:
         async with _cache_lock:
@@ -425,6 +544,18 @@ async def _fetch_fund_estimate(fund_code: str, classification=None) -> dict:
         last_nav = history[-1].get("nav", 0) if history else 0
         fund_type = classification.fund_type if classification else "other"
         fund_type_label = classification.description if classification else ""
+
+        if fund_code in _SPECIAL_ASSET_PROXY_MAP and in_live_display_window():
+            special_result = await _estimate_special_asset_fund(
+                fund_code=fund_code,
+                fund_name=fund_name,
+                portfolio=portfolio if isinstance(portfolio, dict) else {},
+                history=history,
+                fund_type=fund_type,
+                fund_type_label=fund_type_label,
+            )
+            if special_result:
+                return special_result
 
         # ── 策略 A: ETF 联接基金 → 直接用底层 ETF 场内价格 ──
         etf_code = portfolio.get("penetrated_from")
@@ -791,7 +922,12 @@ async def get_portfolio_valuation(holdings: list) -> dict:
         }
     """
     try:
-        from app.services.fund_service import _sync_get_fund_history
+        from app.services.fund_service import _sync_get_fund_history, get_official_nav_updated_codes
+
+        official_updated_codes = await asyncio.to_thread(
+            get_official_nav_updated_codes,
+            current_display_trade_date(),
+        )
         
         async def _process_single_fund(h: dict) -> dict | None:
             code = h.get("code")
@@ -892,6 +1028,7 @@ async def get_portfolio_valuation(holdings: list) -> dict:
                 "benchmark": valuation.get("benchmark"),
                 "benchmark_name": valuation.get("benchmark_name"),
                 "settlement_delay": valuation.get("settlement_delay", 0),
+                "official_nav_updated": code in official_updated_codes,
             }
 
         # ── asyncio.gather 并发执行所有基金估值 ──
@@ -953,9 +1090,9 @@ def _get_qt_code(stock_code: str) -> str | None:
     """将股票代码转换为腾讯行情 API 格式 (sh/sz/bj/hk 前缀)"""
     code = str(stock_code).strip()
     if len(code) == 6:
-        if code.startswith("6"):
+        if code.startswith(("5", "6")):
             return f"sh{code}"
-        elif code.startswith(("0", "3")):
+        elif code.startswith(("0", "1", "3")):
             return f"sz{code}"
         elif code.startswith(("4", "8")):
             return f"bj{code}"

@@ -13,6 +13,8 @@ from typing import Any
 import akshare as ak
 from cachetools import TTLCache
 
+from app.services.trading_calendar import current_display_trade_date, in_live_display_window
+
 logger = logging.getLogger("navpulse.market")
 
 # ── 全局缓存 ──────────────────────────────────────────────
@@ -22,10 +24,10 @@ _index_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
 _distribution_cache: TTLCache = TTLCache(maxsize=10, ttl=60)
 # 板块数据缓存 120秒
 _sector_cache: TTLCache = TTLCache(maxsize=50, ttl=120)
-# 基金涨跌榜缓存 300秒 (数据量大，缓存久一点)
-_fund_rank_cache: TTLCache = TTLCache(maxsize=5, ttl=300)
-# 全量基金 DataFrame 共享缓存 120秒（涨跌分布 + 涨跌榜共用，避免重复调接口）
-_fund_df_cache: TTLCache = TTLCache(maxsize=1, ttl=120)
+# 基金涨跌榜缓存 60 秒（盘中不允许长时间保留旧榜单）
+_fund_rank_cache: TTLCache = TTLCache(maxsize=5, ttl=60)
+# 全量基金 DataFrame 共享缓存 60 秒（涨跌分布 + 涨跌榜共用，避免重复调接口）
+_fund_df_cache: TTLCache = TTLCache(maxsize=1, ttl=60)
 
 # 线程池，用于在异步环境中执行同步的 akshare 调用
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -139,13 +141,16 @@ def _sync_get_index_data() -> list[dict[str, Any]]:
     return []
 
 
-def _get_all_fund_df():
+def _get_all_fund_df(force_refresh: bool = False):
     """
     获取全量开放式基金 DataFrame（共享缓存）
     涨跌分布 + 涨跌榜共用同一份数据，120秒内只调一次 akshare 接口
     返回已完成 日增长率 数值转换 + A/C 类去重 的 DataFrame
     """
     cache_key = "all_fund_df"
+    if force_refresh:
+        _fund_df_cache.clear()
+
     if cache_key in _fund_df_cache:
         return _fund_df_cache[cache_key]
 
@@ -165,7 +170,7 @@ def _get_all_fund_df():
     return df
 
 
-def _sync_get_stock_distribution() -> dict[str, Any]:
+def _sync_get_stock_distribution(force_refresh: bool = False) -> dict[str, Any]:
     """
     同步获取全市场基金涨跌分布
     使用 _get_all_fund_df() 共享缓存，避免重复调接口
@@ -180,7 +185,7 @@ def _sync_get_stock_distribution() -> dict[str, Any]:
     }
 
     try:
-        df = _get_all_fund_df()
+        df = _get_all_fund_df(force_refresh=force_refresh)
         change_col = "日增长率"
 
         up   = int((df[change_col] > 0).sum())
@@ -293,13 +298,13 @@ async def get_sector_list() -> list[dict[str, Any]]:
     return result
 
 
-def _sync_get_fund_rank() -> dict[str, Any]:
+def _sync_get_fund_rank(force_refresh: bool = False) -> dict[str, Any]:
     """
     同步获取基金涨跌榜数据
     使用 _get_all_fund_df() 共享缓存，避免重复调接口
     """
     try:
-        df = _get_all_fund_df()
+        df = _get_all_fund_df(force_refresh=force_refresh)
 
         # \u53d6\u65e5\u671f\u3001\u5355\u4f4d\u51c0\u503c\u4e5f\u8f6c\u4e3a\u5b89\u5168\u7c7b\u578b
         data_date = ""
@@ -340,6 +345,17 @@ def _is_valid_fund_rank(data: dict[str, Any] | None) -> bool:
     top = data.get("top") or []
     bottom = data.get("bottom") or []
     return bool(top or bottom)
+
+
+def _normalize_rank_date(value: Any) -> str:
+    text = str(value or "").strip()
+    return text[:10] if text else ""
+
+
+def _is_rank_for_current_display_date(data: dict[str, Any] | None) -> bool:
+    if not data:
+        return False
+    return _normalize_rank_date(data.get("date")) == current_display_trade_date()
 
 
 def _load_fund_rank_from_db() -> dict[str, Any] | None:
@@ -392,11 +408,14 @@ def _persist_fund_rank_to_db(data: dict[str, Any]):
         logger.warning(f"持久化基金涨跌榜失败: {e}")
 
 
-async def _fetch_fund_rank_fresh(timeout_seconds: int = 12) -> dict[str, Any]:
+async def _fetch_fund_rank_fresh(
+    timeout_seconds: int = 12,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
     loop = asyncio.get_event_loop()
     try:
         return await asyncio.wait_for(
-            loop.run_in_executor(_executor, _sync_get_fund_rank),
+            loop.run_in_executor(_executor, _sync_get_fund_rank, force_refresh),
             timeout=timeout_seconds,
         )
     except Exception as e:
@@ -413,21 +432,39 @@ async def get_fund_rank(force_refresh: bool = False) -> dict[str, Any]:
     异步获\u53d6\u57fa\u91d1\u6d28\u8dcc\u699c\uff08\u5e26\u7f13\u5b58\uff09
     """
     cache_key = "fund_rank"
+    live_window = in_live_display_window()
+
+    if force_refresh:
+        _fund_rank_cache.clear()
+        _fund_df_cache.clear()
+
     if not force_refresh and cache_key in _fund_rank_cache:
-        return _fund_rank_cache[cache_key]
+        cached = _fund_rank_cache[cache_key]
+        if (not live_window) or _is_rank_for_current_display_date(cached):
+            return cached
 
     # 非强刷：优先返回 SQLite 中最近一次可用数据，保证页面秒开
     if not force_refresh:
         db_cached = _load_fund_rank_from_db()
-        if _is_valid_fund_rank(db_cached):
+        if _is_valid_fund_rank(db_cached) and ((not live_window) or _is_rank_for_current_display_date(db_cached)):
             _fund_rank_cache[cache_key] = db_cached
             return db_cached
 
-    result = await _fetch_fund_rank_fresh(timeout_seconds=12)
+    result = await _fetch_fund_rank_fresh(timeout_seconds=12, force_refresh=True)
     if _is_valid_fund_rank(result):
+        if live_window and not _is_rank_for_current_display_date(result):
+            logger.warning(
+                "基金涨跌榜日期过期，当前需要 %s，实际得到 %s，已丢弃旧榜单",
+                current_display_trade_date(),
+                _normalize_rank_date(result.get("date")),
+            )
+            return {"date": current_display_trade_date(), "top": [], "bottom": [], "total_count": 0}
         _fund_rank_cache[cache_key] = result
         _persist_fund_rank_to_db(result)
         return result
+
+    if live_window:
+        return {"date": current_display_trade_date(), "top": [], "bottom": [], "total_count": 0}
 
     # 拉取失败兜底：内存缓存 → SQLite → 空结构
     if cache_key in _fund_rank_cache:

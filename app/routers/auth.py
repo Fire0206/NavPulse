@@ -63,7 +63,7 @@ async def register_page(request: Request):
 
 @router.post("/register")
 async def register(req: RegisterRequest, request: Request, db: Session = Depends(get_db)):
-    """用户注册 API（增强版：密码强度 + 模糊化错误）"""
+    """用户注册 API（成功后直接返回 JWT，实现注册即登录）"""
     username = req.username.strip()
     password = req.password.strip()
 
@@ -79,11 +79,18 @@ async def register(req: RegisterRequest, request: Request, db: Session = Depends
 
     # 检查用户名是否已存在（模糊化错误信息，防止用户名枚举）
     if get_user_by_username(db, username):
-        # 不特别提示"用户名已存在"，防止攻击者探测用户名
-        raise HTTPException(status_code=400, detail="注册失败，请检查输入信息")
+        raise HTTPException(status_code=400, detail="用户名已存在，请更换后重试")
 
     user = create_user(db, username, password)
-    return {"success": True, "message": "注册成功", "username": user.username}
+    token = create_access_token(data={"sub": user.username})
+    return {
+        "success": True,
+        "message": "注册成功",
+        "username": user.username,
+        "access_token": token,
+        "token_type": "bearer",
+        "redirect_to": "/",
+    }
 
 
 @router.post("/token")
